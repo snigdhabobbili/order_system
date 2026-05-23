@@ -1,0 +1,7 @@
+node_modules/
+db/registers.db
+db/registers.db-shm
+db/registers.db-wal
+db/sessions.db
+reports/
+.env

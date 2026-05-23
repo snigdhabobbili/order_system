@@ -1,0 +1,26 @@
+{
+  "name": "tgtransco-registers",
+  "version": "1.0.0",
+  "description": "TGTRANSCO IT Wing Internal Registers",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "setup": "node db/setup.js",
+    "report": "node scripts/weekly-report.js",
+    "backup": "node scripts/backup.js"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "bcryptjs": "^2.4.3",
+    "better-sqlite3": "^12.10.0",
+    "better-sqlite3-session-store": "^0.1.0",
+    "connect-sqlite3": "^0.9.13",
+    "exceljs": "^4.4.0",
+    "express": "^4.22.2",
+    "express-session": "^1.19.0",
+    "nodemailer": "^6.10.1",
+    "pdfkit": "^0.15.2",
+    "sql.js": "^1.14.1",
+    "svg-captcha": "^1.4.0"
+  }
+}
