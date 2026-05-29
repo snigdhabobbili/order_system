@@ -104,6 +104,20 @@ db.exec(`
   );
 `);
 
+// ── Notifications ──────────────────────────────────────────────────────────
+db.exec(`
+  CREATE TABLE IF NOT EXISTS notifications (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    module     TEXT NOT NULL,
+    record_id  INTEGER NOT NULL,
+    action     TEXT NOT NULL,
+    done_by    TEXT NOT NULL,
+    message    TEXT NOT NULL,
+    is_read    INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+  );
+`);
+
 // ── Seed default users ─────────────────────────────────────────────────────
 const SALT_ROUNDS = 12;
 

@@ -503,27 +503,208 @@ input.error, select.error, textarea.error { border-color: var(--danger); }
   .login-org { font-size: 20px; }
 }
 
-/* ── Show more / less ─────────────────────────────────────────────────── */
-.desc-short {
-  max-width: 180px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+/* ── Notification Bell ──────────────────────────────────────────────────── */
+.notif-bell {
+  position: relative;
+  color: #fff;
+  font-size: 20px;
+  text-decoration: none;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  transition: background 0.15s;
+  display: flex; align-items: center;
+}
+.notif-bell:hover { background: rgba(255,255,255,0.1); }
+.notif-badge {
+  position: absolute;
+  top: 0; right: 0;
+  background: #e53e3e;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  min-width: 16px;
+  height: 16px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  padding: 0 3px;
+}
+
+/* ── Search bar ─────────────────────────────────────────────────────────── */
+.search-bar {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow);
+}
+.search-bar-row {
+  display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+}
+.search-text-wrap { flex: 1; min-width: 200px; position: relative; }
+.search-text-wrap .ti-search {
+  position: absolute; left: 10px; top: 50%;
+  transform: translateY(-50%); color: var(--text3); font-size: 15px;
+}
+.search-text-input {
+  width: 100%; padding: 8px 10px 8px 34px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font-size: 13px; background: var(--bg); color: var(--text);
+  font-family: inherit;
+}
+.search-text-input:focus { outline: none; border-color: var(--navy); }
+.search-checkboxes {
+  display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px;
+}
+.search-checkbox-item {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 12px; color: var(--text2); cursor: pointer;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 4px 10px;
+  transition: all 0.15s;
+}
+.search-checkbox-item:hover { border-color: var(--navy); color: var(--navy); }
+.search-checkbox-item input { cursor: pointer; }
+.search-checkbox-item.checked { background: var(--info-bg); border-color: var(--navy); color: var(--navy); font-weight: 500; }
+.search-clear-btn {
+  background: transparent; border: 1px solid var(--border);
+  color: var(--text2); padding: 6px 12px; border-radius: var(--radius-sm);
+  font-size: 12px; cursor: pointer; white-space: nowrap;
+}
+
+/* ── Forgotten entry badge ──────────────────────────────────────────────── */
+.suffix-badge {
+  display: inline-block; background: #fef9c3; color: #854d0e;
+  font-size: 10px; font-weight: 700; padding: 1px 5px;
+  border-radius: 3px; margin-left: 4px; vertical-align: middle;
+}
+
+/* ── F.NO display ───────────────────────────────────────────────────────── */
+.fno-display {
+  padding: 9px 11px; border: 1px solid var(--border2);
+  border-radius: var(--radius-sm); font-size: 13px;
+  background: var(--bg); color: var(--navy); font-weight: 600;
+}
+
+/* ── Notification Bell ────────────────────────────────────────────────── */
+.notif-bell {
+  position: relative; display: flex; align-items: center;
+  color: #fff; font-size: 20px; text-decoration: none;
+  padding: 4px 8px; border-radius: var(--radius-sm);
+  transition: background 0.15s;
+}
+.notif-bell:hover { background: rgba(255,255,255,0.1); }
+.notif-badge {
+  position: absolute; top: 0; right: 0;
+  background: #e53e3e; color: #fff;
+  font-size: 10px; font-weight: 700;
+  min-width: 16px; height: 16px;
+  border-radius: 8px; padding: 0 4px;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* ── Notifications Page ───────────────────────────────────────────────── */
+.notif-list { display: flex; flex-direction: column; gap: 10px; }
+.notif-item {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 14px 18px;
+  display: flex; align-items: flex-start; gap: 14px;
+}
+.notif-item.unread { border-left: 3px solid var(--navy); background: #f0f4ff; }
+.notif-icon { font-size: 20px; color: var(--navy); flex-shrink: 0; margin-top: 2px; }
+.notif-content { flex: 1; }
+.notif-title { font-size: 14px; font-weight: 600; color: var(--navy); margin-bottom: 3px; }
+.notif-detail { font-size: 12px; color: var(--text2); }
+.notif-time { font-size: 11px; color: var(--text3); margin-top: 4px; }
+.notif-empty { text-align: center; padding: 60px; color: var(--text2); }
+
+/* ── Search Bar ───────────────────────────────────────────────────────── */
+.search-bar-wrap {
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px 16px;
+  margin-bottom: 16px; display: flex; gap: 10px; align-items: center;
+  flex-wrap: wrap;
+}
+.search-main { flex: 1; min-width: 200px; position: relative; }
+.search-main .ti-search {
+  position: absolute; left: 10px; top: 50%;
+  transform: translateY(-50%); color: var(--text3);
+}
+.search-main input {
+  width: 100%; padding: 8px 10px 8px 32px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font-size: 13px; background: var(--bg);
+}
+.search-main input:focus { outline: none; border-color: var(--navy); }
+.search-dropdown-wrap { position: relative; }
+.search-dropdown-btn {
+  padding: 8px 14px; border: 1px solid var(--border);
+  border-radius: var(--radius-sm); font-size: 13px;
+  background: var(--bg); cursor: pointer;
+  display: flex; align-items: center; gap: 6px;
   white-space: nowrap;
 }
-.desc-full {
-  max-width: 260px;
-  white-space: pre-wrap;
-  word-break: break-word;
+.search-dropdown-panel {
+  display: none; position: absolute; top: 100%; left: 0;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 10px 14px;
+  z-index: 50; min-width: 200px; box-shadow: var(--shadow-md);
+  margin-top: 4px;
 }
-.show-more-btn {
-  color: #1a3a6b;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  text-decoration: underline;
-  display: inline-block;
-  margin-top: 3px;
+.search-dropdown-panel.open { display: block; }
+.search-check-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 0; font-size: 13px; cursor: pointer;
 }
-.show-more-btn:hover {
-  color: #0f2a4a;
+.search-check-item input[type=checkbox] { cursor: pointer; }
+
+/* ── Search bar (inward/outward) ────────────────────────────────────────── */
+.search-bar-wrap {
+  display: flex; gap: 10px; align-items: center;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px 16px;
+  margin-bottom: 14px; box-shadow: var(--shadow);
+  flex-wrap: wrap;
 }
+.search-dropdown-wrap { position: relative; flex-shrink: 0; }
+.search-dropdown-btn {
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--radius-sm); padding: 8px 14px;
+  font-size: 13px; color: var(--text); cursor: pointer;
+  display: flex; align-items: center; gap: 6px;
+  font-family: inherit; white-space: nowrap;
+}
+.search-dropdown-btn:hover { border-color: var(--navy); }
+.search-dropdown-panel {
+  display: none; position: absolute; top: calc(100% + 6px); left: 0;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 12px;
+  box-shadow: var(--shadow-md); z-index: 50;
+  min-width: 200px; max-height: 320px; overflow-y: auto;
+  flex-direction: column; gap: 6px;
+}
+.search-dropdown-panel.open { display: flex !important; }
+.search-dropdown-panel[style*="block"], .search-dropdown-panel[style*="flex"] { display: flex !important; }
+.search-check-item {
+  display: flex; align-items: center; gap: 8px;
+  font-size: 13px; color: var(--text); cursor: pointer;
+  padding: 5px 8px; border-radius: var(--radius-sm);
+  transition: background 0.1s;
+}
+.search-check-item:hover { background: var(--bg); }
+.search-check-item input[type=checkbox] { cursor: pointer; width: 14px; height: 14px; }
+.search-main {
+  flex: 1; position: relative; min-width: 200px;
+  display: flex; align-items: center;
+}
+.search-main .ti-search {
+  position: absolute; left: 10px;
+  color: var(--text3); font-size: 15px; pointer-events: none;
+}
+.search-main input {
+  width: 100%; padding: 8px 10px 8px 34px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  font-size: 13px; background: var(--bg); color: var(--text);
+  font-family: inherit;
+}
+.search-main input:focus { outline: none; border-color: var(--navy); }

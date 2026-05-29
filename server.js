@@ -5,11 +5,11 @@ const fs      = require('fs');
 const BetterSqlite3Store = require('better-sqlite3-session-store')(session);
 const Database = require('better-sqlite3');
 
-const app  = express();
+const app  = express(); //creates entire web application as one object called app
 const PORT = 3000;
 
 const REPORTS_DIR = path.join(__dirname, 'reports');
-if (!fs.existsSync(REPORTS_DIR)) fs.mkdirSync(REPORTS_DIR, { recursive: true });
+if (!fs.existsSync(REPORTS_DIR)) fs.mkdirSync(REPORTS_DIR, { recursive: true }); // creates report folder
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -36,6 +36,8 @@ app.use('/sanctions',      requireAuth, require('./routes/sanctions'));
 app.use('/inward',         requireAuth, require('./routes/inward'));
 app.use('/outward',        requireAuth, require('./routes/outward'));
 app.use('/download',       requireAuth, require('./routes/download'));
+app.use('/notifications',  requireAuth, require('./routes/notifications'));
+app.use('/archive',        requireAuth, require('./routes/archive'));
 
 app.get('/', (req, res) => {
   if (req.session.user) return res.redirect('/dashboard');

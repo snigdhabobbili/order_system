@@ -14,15 +14,12 @@ router.get('/', (req, res) => {
   const inCount  = db.prepare('SELECT COUNT(*) as c FROM inward_orders WHERE financial_year=?').get(fy).c;
   const outCount = db.prepare('SELECT COUNT(*) as c FROM outward_orders WHERE financial_year=?').get(fy).c;
 
-  const pastRows = db.prepare(`
-    SELECT DISTINCT financial_year FROM (
-      SELECT financial_year FROM purchase_orders
-      UNION SELECT financial_year FROM sanctions
-      UNION SELECT financial_year FROM inward_orders
-      UNION SELECT financial_year FROM outward_orders
-    ) WHERE financial_year != ? ORDER BY financial_year DESC
-  `).all(fy);
-  const pastFYs = pastRows.map(r => r.financial_year);
+  // Generate all FYs from 2020-2021 up to (but not including) current
+  const pastFYs = [];
+  const [curStart] = fy.split('-').map(Number);
+  for (let y = curStart - 1; y >= 2020; y--) {
+    pastFYs.push(y + '-' + (y + 1));
+  }
 
   const isAdmin = user.role === 'admin';
   const isUser1 = user.role === 'user1';
@@ -83,7 +80,7 @@ router.get('/', (req, res) => {
     <script>
       const sel = document.getElementById('fyArchiveSelect');
       if (sel) sel.addEventListener('change', function() {
-        if (this.value) window.location.href = '/purchase-orders?fy=' + encodeURIComponent(this.value);
+        if (this.value) window.location.href = '/archive?fy=' + encodeURIComponent(this.value);
       });
     </script>
   `;

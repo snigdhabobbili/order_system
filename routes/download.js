@@ -19,7 +19,20 @@ function getRows(db, module, fy) {
   };
   const tbl = tables[module];
   if (!tbl) return null;
-  return db.prepare(`SELECT * FROM ${tbl} WHERE financial_year=? ORDER BY rowid ASC`).all(fy);
+  const allRows = db.prepare(`SELECT * FROM ${tbl} WHERE financial_year=? ORDER BY rowid ASC`).all(fy);
+  // Sort by numeric serial with suffix support
+  allRows.sort((a, b) => {
+    let aStr, bStr;
+    if (tbl === 'inward_orders')  { aStr = String(a.c_no_text||a.c_no); bStr = String(b.c_no_text||b.c_no); }
+    else if (tbl === 'outward_orders') { aStr = String(a.d_no_text||a.d_no); bStr = String(b.d_no_text||b.d_no); }
+    else if (tbl === 'purchase_orders') { aStr = String(a.sl_no_text||a.sl_no); bStr = String(b.sl_no_text||b.sl_no); }
+    else if (tbl === 'sanctions') { aStr = String(a.sl_no_text||a.sl_no); bStr = String(b.sl_no_text||b.sl_no); }
+    else return 0;
+    const aNum = parseInt(aStr); const bNum = parseInt(bStr);
+    if (aNum !== bNum) return aNum - bNum;
+    return aStr.localeCompare(bStr);
+  });
+  return allRows;
 }
 
 function moduleConfig(module) {
@@ -27,22 +40,22 @@ function moduleConfig(module) {
     'purchase-orders': {
       title: 'Purchase Orders',
       headers: ['SL.NO','SAP PO No.','Date','Name & Supplier','Description','Qty','Rate (₹)','PO Cost (₹)','GST (%)','Total (₹)','F.NO','Sign','Entered By'],
-      row: r => [r.sl_no, r.sap_po_no, r.date, r.name_supplier, r.description, r.qty, inr(r.rate), inr(r.po_cost), r.gst_percent+'%', inr(r.total), r.file_no||'', r.sign||'', r.entered_by],
+      row: r => [r.sl_no_text||r.sl_no, r.sap_po_no, r.date, r.name_supplier, r.description, r.qty, inr(r.rate), inr(r.po_cost), r.gst_percent+'%', inr(r.total), r.file_no||'', r.sign||'', r.entered_by],
     },
     'sanctions': {
       title: 'Sanctions',
       headers: ['SL.NO','Sanction No.','Date','Expenditure Details','Amount (₹)','Reference','Signature','Entered By'],
-      row: r => [r.sl_no, r.sanction_no, r.date, r.expenditure_details, inr(r.amount), r.reference||'', r.signature||'', r.entered_by],
+      row: r => [r.sl_no_text||r.sl_no, r.sanction_no, r.date, r.expenditure_details, inr(r.amount), r.reference||'', r.signature||'', r.entered_by],
     },
     'inward': {
       title: 'Inward Orders',
       headers: ['C.NO','Date','Received From','Subject','File No.','Remarks','Entered By'],
-      row: r => [r.c_no, r.date, r.received_from, r.subject, r.file_no||'', r.remarks||'', r.entered_by],
+      row: r => [r.c_no_text||r.c_no, r.date, r.received_from, r.subject, r.file_no||'', r.remarks||'', r.entered_by],
     },
     'outward': {
       title: 'Outward Orders',
       headers: ['D.NO','Date','To Whom Addressed','Description/Subject','File No.','Remarks','Entered By'],
-      row: r => [r.d_no, r.date, r.to_whom_addressed, r.description, r.file_no||'', r.remarks||'', r.entered_by],
+      row: r => [r.d_no_text||r.d_no, r.date, r.to_whom_addressed, r.description, r.file_no||'', r.remarks||'', r.entered_by],
     },
   }[module] || null;
 }
@@ -66,16 +79,15 @@ router.get('/:module/excel', async (req, res) => {
 
   const hdrRow = ws.addRow(cfg.headers);
   hdrRow.eachCell(cell => {
-    cell.font      = { bold:true, color:{ argb:'FFFFFFFF' } };
-    cell.fill      = { type:'pattern', pattern:'solid', fgColor:{ argb:'FF0F2A4A' } };
+    cell.font      = { bold:true };
     cell.alignment = { horizontal:'center', wrapText:true };
+    cell.border = {
+      bottom: { style:'medium', color:{ argb:'FF000000' } }
+    };
   });
 
-  rows.forEach((r, i) => {
+  rows.forEach((r) => {
     const dr = ws.addRow(cfg.row(r));
-    if (i % 2 === 0) dr.eachCell(cell => {
-      cell.fill = { type:'pattern', pattern:'solid', fgColor:{ argb:'FFF4F6F9' } };
-    });
     dr.eachCell(cell => { cell.alignment = { wrapText:true }; });
   });
 

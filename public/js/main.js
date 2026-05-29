@@ -178,6 +178,13 @@ function initEditEntry() {
 
 // ── Delete confirm ─────────────────────────────────────────────────────────
 function initDelete() {
+  // Restore scroll position after delete reload
+  const savedScroll = sessionStorage.getItem('deleteScrollY');
+  if (savedScroll) {
+    window.scrollTo(0, parseInt(savedScroll));
+    sessionStorage.removeItem('deleteScrollY');
+  }
+
   document.querySelectorAll('.delete-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const id    = btn.dataset.id;
@@ -191,10 +198,19 @@ function initDelete() {
       overlay.classList.add('active');
     });
   });
+
   const cancelDel = document.getElementById('cancelDelete');
   if (cancelDel) cancelDel.addEventListener('click', () => {
     document.getElementById('confirmOverlay').classList.remove('active');
   });
+
+  // Save scroll position when delete is confirmed
+  const deleteForm = document.getElementById('deleteForm');
+  if (deleteForm) {
+    deleteForm.addEventListener('submit', () => {
+      sessionStorage.setItem('deleteScrollY', window.scrollY);
+    });
+  }
 }
 
 // ── Success dialog auto-show ───────────────────────────────────────────────

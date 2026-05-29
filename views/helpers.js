@@ -9,7 +9,12 @@ function fmtDate(d) {
 }
 
 function actionButtons(row, user, isArchive, deleteBase, labelFn) {
-  if (isArchive) return '<span style="color:var(--text3);font-size:12px">—</span>';
+  if (isArchive) {
+    if (user.role === 'admin') {
+      return '<form method="POST" action="' + deleteBase + '/' + row.id + '/delete" style="margin:0" onsubmit="return confirm(&quot;Delete this archived record permanently? This cannot be undone.&quot;)"><button class="btn-delete-sm" type="submit">Delete</button></form>';
+    }
+    return '<span style="color:var(--text3);font-size:12px">—</span>';
+  }
   const editable  = isEditable(row.created_at);
   const canEdit   = user.role === 'admin' || editable;
   const canDelete = user.role === 'admin';
@@ -70,4 +75,16 @@ function successOverlay(serialLabel, serialValue) {
   </div>`;
 }
 
-module.exports = { actionButtons, statusBadge, inr, confirmOverlay, successOverlay, fmtDate };
+function canUserEdit(row, user) {
+  if (user.role === 'admin') return true;
+  return isEditable(row.created_at);
+}
+
+function writeNotification(db, module, recordId, action, doneBy, message) {
+  try {
+    db.prepare('INSERT INTO notifications (module,record_id,action,done_by,message) VALUES (?,?,?,?,?)')
+      .run(module, recordId, action, doneBy, message);
+  } catch(e) { console.error('Notification write error:', e.message); }
+}
+
+module.exports = { actionButtons, statusBadge, inr, confirmOverlay, successOverlay, fmtDate, canUserEdit, writeNotification };

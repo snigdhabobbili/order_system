@@ -1,4 +1,5 @@
 const express = require('express');
+const svgCaptcha = require('svg-captcha');
 const router  = express.Router();
 const bcrypt  = require('bcrypt');
 const crypto  = require('crypto');
@@ -7,13 +8,20 @@ const getDb   = require('../db');
 const captchaStore = new Map();
 
 function generateCaptcha() {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  let text = '';
-  for (let i = 0; i < 6; i++) text += chars[Math.floor(Math.random() * chars.length)];
+  const captcha = svgCaptcha.create({
+    size: 6,
+    noise: 3,
+    color: true,
+    background: '#d9dadc',
+    width: 160,
+    height: 50,
+    fontSize: 52,
+    charPreset: 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  });
   const token = crypto.randomBytes(16).toString('hex');
-  captchaStore.set(token, { text, expires: Date.now() + 5 * 60 * 1000 });
+  captchaStore.set(token, { text: captcha.text, expires: Date.now() + 5 * 60 * 1000 });
   for (const [k, v] of captchaStore) if (v.expires < Date.now()) captchaStore.delete(k);
-  return { text, token };
+  return { svg: captcha.data, token };
 }
 
 function verifyCaptcha(token, input) {
@@ -52,7 +60,8 @@ router.post('/logout', (req, res) => {
 });
 
 router.get('/captcha/new', (req, res) => {
-  res.json(generateCaptcha());
+  const cap = generateCaptcha();
+  res.json({ svg: cap.svg, token: cap.token });
 });
 
 function loginPage(cap, username, error) {
@@ -66,17 +75,17 @@ function loginPage(cap, username, error) {
   <link rel="stylesheet" href="/css/main.css"/>
 </head>
 <body class="login-page">
-  <div class="login-header">
-    <img src="/img/logo.jpg" alt="TGTRANSCO Logo" class="login-logo"
-         onerror="this.style.display='none'"/>
-    <div>
-      <div class="login-org">Transmission Corporation of Telangana Limited</div>
-      <div class="login-org-sub">(A Govt. of Telangana Owned Company)</div>
-    </div>
-  </div>
-  <div class="tricolor"></div>
   <div class="login-content">
-    <h1 class="login-heading">IT Wing Registers</h1>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:14px;margin-bottom:20px">
+      <img src="/img/logo.jpg" alt="TGTRANSCO Logo"
+           onerror="this.style.display='none'"
+           style="width:120px;height:120px;object-fit:contain;border-radius:0"/>
+      <div style="text-align:center">
+        <div style="font-size:26px;font-weight:800;color:#0f2a4a;line-height:1.2">Transmission Corporation of Telangana Limited</div>
+        <div style="font-size:14px;color:#5a6278;margin-top:4px;font-style:italic">(A Govt. of Telangana Owned Company)</div>
+      </div>
+    </div>
+    <h1 class="login-heading" style="font-size:16px;font-weight:600;color:#5a6278;margin-bottom:16px">IT Wing Registers</h1>
     <div class="login-card">
       <div class="login-card-header"><span>User Login</span></div>
       <div class="login-card-body">
@@ -96,7 +105,7 @@ function loginPage(cap, username, error) {
           <div class="login-field">
             <label>Captcha <span style="color:#c0392b">*</span></label>
             <div class="captcha-row">
-              <div class="captcha-box" id="captchaDisplay">${cap.text}</div>
+              <div id="captchaDisplay" style="width:160px;height:50px;flex-shrink:0;border:1.5px solid #e2e8f0;border-radius:6px;overflow:hidden;background:#f1f5f9">${cap.svg}</div>
               <button type="button" class="captcha-refresh" id="refreshCaptcha" title="Refresh captcha">
                 <i class="ti ti-refresh"></i>
               </button>
@@ -108,7 +117,7 @@ function loginPage(cap, username, error) {
         </form>
       </div>
       <div class="login-card-footer">
-        <span>For access issues, contact your system administrator</span>
+        <span></span>
       </div>
     </div>
   </div>
@@ -117,7 +126,7 @@ function loginPage(cap, username, error) {
     document.getElementById('refreshCaptcha').addEventListener('click', async () => {
       const res  = await fetch('/captcha/new');
       const data = await res.json();
-      document.getElementById('captchaDisplay').textContent = data.text;
+      document.getElementById('captchaDisplay').innerHTML = data.svg;
       document.getElementById('captchaToken').value = data.token;
       document.getElementById('captchaInput').value = '';
     });

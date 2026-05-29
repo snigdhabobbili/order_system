@@ -2,10 +2,31 @@ const express = require('express');
 const router  = express.Router();
 const getDb   = require('../db');
 const { layout, isEditable } = require('../views/layout');
-const { currentFY, getPastFYs } = require('../db/fy');
-const { actionButtons, statusBadge, confirmOverlay, successOverlay, fmtDate } = require('../views/helpers');
+const { getFY, currentFY, getPastFYs } = require('../db/fy');
+const { actionButtons, statusBadge, confirmOverlay, successOverlay, fmtDate, writeNotification } = require('../views/helpers');
+
+// Search filter values — add more here when available
+const TO_WHOM_VALUES = [
+  'CMD', 'Director (Grid and Transmission Management',
+  'Director (Projects)','Director (Finance)','Director (Lift Irrigation & Schemes)','Director (Grid Operations)','ED/Comml/TGPCC	',
+  'CGM/HRD	','CE/IT	','CE/Transmission	','CE/Construction-I	','CE/Construction-II	',
+  'CE/ P& MM	','CE/400KV	','CE/Telecom' , 'CE/Comml & RAC', 'CE/ Civil', 'CE/SLDC ( FAC)', 'CE/LIS- Incharge', 'CE/PR/LIS', 'CE/Power System', 'Joint Secretary', 'FA&CCA(R&A & CFO)(I/C)', 'FA&CCA /TGPCC (I/C)', 'CE/Digitalization', 'CE/Training/CTI', 'CE/Metro', 'CE/Rural','CE/ Warangal', 'CE/400kV Wgl', 'CE/Karimnagar',
+];
 
 const ALLOWED = ['admin','user1'];
+
+function getNextSuffixOutward(db, baseNum, fy) {
+  const rows = db.prepare(
+    `SELECT d_no_text FROM outward_orders WHERE financial_year=? AND d_no_text LIKE ?`
+  ).all(fy, baseNum + '/%');
+  const suffixes = rows
+    .map(r => String(r.d_no_text).replace(baseNum + '/', ''))
+    .filter(s => /^[A-Z]$/.test(s));
+  if (suffixes.length === 0) return baseNum + '/A';
+  const last = suffixes.sort().pop();
+  return baseNum + '/' + String.fromCharCode(last.charCodeAt(0) + 1);
+}
+
 function checkAccess(req, res, next) {
   if (!ALLOWED.includes(req.session.user.role)) return res.status(403).send('Access denied.');
   next();
@@ -18,23 +39,41 @@ router.get('/', checkAccess, (req, res) => {
   const fy    = req.query.fy || curFY;
   const isArchive = fy !== curFY;
   const pastFYs   = getPastFYs(db, 'outward_orders');
-  const rows = db.prepare('SELECT * FROM outward_orders WHERE financial_year=? ORDER BY d_no ASC').all(fy);
+  const rows = db.prepare('SELECT * FROM outward_orders WHERE financial_year=? ORDER BY rowid ASC').all(fy);
+  rows.sort((a, b) => {
+    const aStr = String(a.d_no_text || a.d_no);
+    const bStr = String(b.d_no_text || b.d_no);
+    const aNum = parseInt(aStr); const bNum = parseInt(bStr);
+    if (aNum !== bNum) return aNum - bNum;
+    return aStr.localeCompare(bStr);
+  });
+
+  const checkboxes = TO_WHOM_VALUES.map(v =>
+    `<label class="search-check-item"><input type="checkbox" class="to-check" value="${v.toLowerCase()}"/> ${v}</label>`
+  ).join('') + `
+    <label class="search-check-item" style="border-top:1px solid var(--border);margin-top:6px;padding-top:8px">
+      <input type="checkbox" class="to-check" id="toOtherCheck" value="__other__"/> Other
+    </label>
+    <div id="toOtherInput" style="display:none;margin-top:6px;padding-left:22px">
+      <input type="text" id="toOtherText" placeholder="Type recipient name…"
+             style="width:100%;padding:6px 10px;border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px"
+             autocomplete="off" oninput="filterTable()"/>
+    </div>`;
 
   const tableRows = rows.map(row => `
-    <tr>
-      <td>${row.d_no}</td>
+    <tr data-search="${[row.d_no, row.to_whom_addressed, row.description, row.file_no, row.remarks, row.entered_by].join(' ').toLowerCase()}" data-to="${(row.to_whom_addressed||'').toLowerCase()}">
+      <td>${row.d_no_text || row.d_no}</td>
       <td>${fmtDate(row.date)}</td>
       <td>${row.to_whom_addressed}</td>
       <td><div class="desc-short">${row.description}</div><div class="desc-full" style="display:none">${row.description}</div><span class="show-more-btn" onclick="toggleDesc(this)">show more</span></td>
       <td>${row.file_no||'—'}</td>
       <td>${row.remarks||'—'}</td>
       <td>${row.entered_by}</td>
-      <td>${isArchive ? '<span class="badge badge-locked">Locked</span>' : statusBadge(row.created_at)}</td>
-      <td>${actionButtons(row, user, isArchive, '/outward', r => `D.NO ${r.d_no} — ${r.to_whom_addressed}`)}</td>
+      <td>${actionButtons(row, user, isArchive && user.role !== 'admin', '/outward', r => 'D.NO ' + (r.d_no_text||r.d_no) + ' — ' + r.to_whom_addressed)}</td>
     </tr>`).join('');
 
   const fyOptions = [curFY, ...pastFYs].map(f =>
-    `<option value="${f}" ${f===fy?'selected':''}>${f}${f===curFY?' (current)':' – Archive'}</option>`
+    '<option value="' + f + '" ' + (f===fy?'selected':'') + '>' + f + (f===curFY?' (current)':' – Archive') + '</option>'
   ).join('');
 
   const body = `
@@ -44,15 +83,36 @@ router.get('/', checkAccess, (req, res) => {
     <div class="page-header">
       <div>
         <div class="page-title">Outward orders</div>
-        <div class="page-sub">${rows.length} entries · FY ${fy}${isArchive ? ' · <span class="badge badge-archive">Archive – Read only</span>' : ' · Entries editable within 24 hours'}</div>
+        <div class="page-sub">${rows.length} entries · FY ${fy}${isArchive ? '' : ' · Entries editable within 24 hours'}</div>
       </div>
       <div class="header-actions">
         <select id="fySelect" class="filter-select">${fyOptions}</select>
-        ${!isArchive ? `<button class="btn btn-primary" id="addEntryBtn"><i class="ti ti-plus"></i> Add entry</button>` : ''}
+        ${!isArchive ? `
+          <button class="btn btn-primary" id="addEntryBtn"><i class="ti ti-plus"></i> Add entry</button>
+          ${user.role === 'admin' ? `<button class="btn btn-outline" id="forgottenEntryBtn"><i class="ti ti-history"></i> Forgotten entry</button>` : ''}
+        ` : ''}
       </div>
     </div>
 
-    ${isArchive ? `<div class="archive-banner"><i class="ti ti-lock"></i> Read-only archive for FY ${fy}.</div>` : ''}
+    <!-- Search bar with checkboxes -->
+    <div class="search-bar-wrap">
+      <div class="search-dropdown-wrap">
+        <button type="button" class="search-dropdown-btn" id="toDropdownBtn">
+          <i class="ti ti-filter"></i> Filter by recipient <i class="ti ti-chevron-down" style="font-size:12px"></i>
+        </button>
+        <div class="search-dropdown-panel" id="toDropdownPanel">
+          <label class="search-check-item" style="font-weight:600;border-bottom:1px solid var(--border);padding-bottom:6px;margin-bottom:4px">
+            <input type="checkbox" id="toSelectAll"/> Select all
+          </label>
+          ${checkboxes}
+        </div>
+      </div>
+      <div class="search-main">
+        <i class="ti ti-search"></i>
+        <input type="text" id="tableSearch" placeholder="Search by description, file no, remarks…" oninput="filterTable()" autocomplete="off"/>
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="clearSearch()"><i class="ti ti-x"></i> Clear</button>
+    </div>
 
     <div class="table-wrap">
       <div class="table-toolbar">
@@ -66,13 +126,18 @@ router.get('/', checkAccess, (req, res) => {
         <table>
           <thead>
             <tr>
-              <th>D.NO</th><th>Date</th><th>To Whom Addressed</th>
-              <th>Description / Subject</th><th>File No.</th><th>Remarks</th>
-              <th>Entered By</th><th>Status</th><th>Actions</th>
+              <th>D.NO</th>
+              <th>Date</th>
+              <th>To Whom Addressed</th>
+              <th>Description / Subject</th>
+              <th>File No.</th>
+              <th>Remarks</th>
+              <th>Entered By</th>
+              <th>Actions</th>
             </tr>
           </thead>
           <tbody id="tableBody">
-            ${tableRows || `<tr><td colspan="9"><div class="empty-state"><i class="ti ti-inbox"></i><p>No entries yet.</p></div></td></tr>`}
+            ${tableRows || '<tr><td colspan="8"><div class="empty-state"><i class="ti ti-inbox"></i><p>No entries yet.</p></div></td></tr>'}
           </tbody>
         </table>
       </div>
@@ -93,23 +158,23 @@ router.get('/', checkAccess, (req, res) => {
             <div class="form-grid">
               <div class="form-group">
                 <label>Date <span class="req">*</span></label>
-                <input type="date" name="date" required class="today-default"/>
+                <input type="date" name="date" required autocomplete="off" class="today-default"/>
               </div>
               <div class="form-group">
                 <label>To Whom Addressed <span class="req">*</span></label>
-                <input type="text" autocomplete="off" name="to_whom_addressed" required/>
+                <input type="text" name="to_whom_addressed" required autocomplete="off"/>
               </div>
               <div class="form-group full">
                 <label>Description / Subject <span class="req">*</span></label>
-                <input type="text" autocomplete="off" name="description" required/>
+                <input type="text" name="description" required autocomplete="off"/>
               </div>
               <div class="form-group">
                 <label>File No.</label>
-                <input type="text" autocomplete="off" name="file_no"/>
+                <input type="text" name="file_no" autocomplete="off"/>
               </div>
               <div class="form-group">
                 <label>Remarks</label>
-                <input type="text" autocomplete="off" name="remarks"/>
+                <input type="text" name="remarks" autocomplete="off"/>
               </div>
             </div>
           </form>
@@ -126,6 +191,63 @@ router.get('/', checkAccess, (req, res) => {
       </div>
     </div>
 
+    <!-- Forgotten Entry Modal -->
+
+    <!-- Forgotten Entry Modal -->
+
+
+    <!-- Forgotten Entry Modal -->
+    ${user.role === 'admin' ? `
+    <div class="modal-overlay" id="forgottenModal">
+      <div class="modal">
+        <div class="modal-header">
+          <span class="modal-title">Insert forgotten entry — Outward orders</span>
+          <button class="modal-close" id="closeForgottenModal">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-danger" style="margin-bottom:16px"><i class="ti ti-alert-circle"></i> Inserts a forgotten entry with suffix D.NO e.g. 4/A, 4/B.</div>
+          <form method="POST" action="/outward/forgotten" id="forgottenForm">
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Insert after D.NO <span class="req">*</span></label>
+                <input type="number" name="after_d_no" required min="1" step="1" autocomplete="off" placeholder="e.g. 4"/>
+                <span class="field-hint">Entry will be inserted as 4/A, 4/B etc.</span>
+              </div>
+              <div class="form-group">
+                <label>Date <span class="req">*</span></label>
+                <input type="date" name="date" required autocomplete="off"/>
+              </div>
+              <div class="form-group">
+                <label>To Whom Addressed <span class="req">*</span></label>
+                <input type="text" name="to_whom_addressed" required autocomplete="off"/>
+              </div>
+              <div class="form-group full">
+                <label>Description / Subject <span class="req">*</span></label>
+                <input type="text" name="description" required autocomplete="off"/>
+              </div>
+              <div class="form-group">
+                <label>File No.</label>
+                <input type="text" name="file_no" autocomplete="off"/>
+              </div>
+              <div class="form-group">
+                <label>Remarks</label>
+                <input type="text" name="remarks" autocomplete="off"/>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <span class="modal-footer-note"><i class="ti ti-info-circle"></i> Suffix D.NO assigned automatically e.g. 4/A</span>
+          <div class="modal-footer-actions">
+            <button class="btn btn-outline" id="cancelForgotten">Cancel</button>
+            <button class="btn btn-primary" onclick="document.getElementById('forgottenForm').submit()">
+              <i class="ti ti-device-floppy"></i> Save forgotten entry
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>` : ''}
+
     <!-- Edit Modal -->
     <div class="modal-overlay" id="editModal">
       <div class="modal">
@@ -139,23 +261,23 @@ router.get('/', checkAccess, (req, res) => {
             <div class="form-grid">
               <div class="form-group">
                 <label>Date <span class="req">*</span></label>
-                <input type="date" name="date" id="edit_date" required/>
+                <input type="date" name="date" id="edit_date" required autocomplete="off"/>
               </div>
               <div class="form-group">
                 <label>To Whom Addressed <span class="req">*</span></label>
-                <input type="text" autocomplete="off" name="to_whom_addressed" id="edit_to_whom_addressed" required/>
+                <input type="text" name="to_whom_addressed" id="edit_to_whom_addressed" required autocomplete="off"/>
               </div>
               <div class="form-group full">
                 <label>Description / Subject <span class="req">*</span></label>
-                <input type="text" autocomplete="off" name="description" id="edit_description" required/>
+                <input type="text" name="description" id="edit_description" required autocomplete="off"/>
               </div>
               <div class="form-group">
                 <label>File No.</label>
-                <input type="text" autocomplete="off" name="file_no" id="edit_file_no"/>
+                <input type="text" name="file_no" id="edit_file_no" autocomplete="off"/>
               </div>
               <div class="form-group">
                 <label>Remarks</label>
-                <input type="text" autocomplete="off" name="remarks" id="edit_remarks"/>
+                <input type="text" name="remarks" id="edit_remarks" autocomplete="off"/>
               </div>
             </div>
           </form>
@@ -172,23 +294,106 @@ router.get('/', checkAccess, (req, res) => {
       </div>
     </div>`;
 
-  res.send(layout(user, 'Outward Orders', body));
+  // Inject search JS
+  const searchScript = `
+    <script>
+    function filterTable() {
+      const q = document.getElementById('tableSearch').value.toLowerCase();
+      const checks = document.querySelectorAll('.to-check:checked');
+      const otherText = (document.getElementById('toOtherText').value || '').toLowerCase().trim();
+      const selectedTo = Array.from(checks)
+        .filter(c => c.value !== '__other__')
+        .map(c => c.value);
+      const otherChecked = document.getElementById('toOtherCheck').checked;
+      const rows = document.querySelectorAll('#tableBody tr[data-search]');
+      let visible = 0;
+      rows.forEach(row => {
+        const textMatch = !q || row.dataset.search.includes(q);
+        const rowTo = (row.dataset.to || '');
+        let toMatch = true;
+        if (selectedTo.length > 0 || otherChecked) {
+          const namedMatch = selectedTo.some(v => rowTo.includes(v));
+          const otherMatch = otherChecked && otherText && rowTo.includes(otherText);
+          toMatch = namedMatch || otherMatch;
+        }
+        const show = textMatch && toMatch;
+        row.style.display = show ? '' : 'none';
+        if (show) visible++;
+
+        // Highlight matching text
+        row.querySelectorAll('td').forEach(td => {
+          const original = td.dataset.original || td.innerText;
+          td.dataset.original = original;
+          if (show && q) {
+            const escaped = q.replace(/[.+?^$()|[\]\\*{}]/g, '\\x24&'.replace('x24','')); const regex = new RegExp('(' + escaped + ')', 'gi');
+            td.innerHTML = original.replace(regex, '<mark style="background:#fef08a;border-radius:2px;padding:0 1px">$1</mark>');
+          } else {
+            td.innerText = original;
+          }
+        });
+      });
+      const countEl = document.querySelector('.table-count');
+      if (countEl) countEl.textContent = visible + ' entries';
+    }
+    function clearSearch() {
+      document.getElementById('tableSearch').value = '';
+      document.querySelectorAll('.to-check').forEach(c => c.checked = false);
+      document.getElementById('toOtherText').value = '';
+      document.getElementById('toOtherInput').style.display = 'none';
+      const all = document.getElementById('toSelectAll');
+      if (all) all.checked = false;
+      filterTable();
+    }
+    // Dropdown toggle
+    document.getElementById('toDropdownBtn').addEventListener('click', function() {
+      const panel = document.getElementById('toDropdownPanel');
+      panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
+    });
+    document.addEventListener('click', function(e) {
+      const wrap = document.querySelector('.search-dropdown-wrap');
+      if (wrap && !wrap.contains(e.target)) {
+        document.getElementById('toDropdownPanel').style.display = 'none';
+      }
+    });
+    // Select all
+    const selAll = document.getElementById('toSelectAll');
+    if (selAll) selAll.addEventListener('change', function() {
+      document.querySelectorAll('.to-check').forEach(c => { c.checked = this.checked; });
+      filterTable();
+    });
+    document.querySelectorAll('.to-check').forEach(c => c.addEventListener('change', function() {
+      if (this.id === 'toOtherCheck') {
+        document.getElementById('toOtherInput').style.display = this.checked ? 'block' : 'none';
+        if (!this.checked) document.getElementById('toOtherText').value = '';
+      }
+      filterTable();
+    }));
+    </script>`;
+
+  const owScript = `<script>
+  const forgottenBtn = document.getElementById('forgottenEntryBtn');
+  if (forgottenBtn) {
+    forgottenBtn.addEventListener('click', () => document.getElementById('forgottenModal').classList.add('active'));
+    document.getElementById('cancelForgotten').addEventListener('click', () => document.getElementById('forgottenModal').classList.remove('active'));
+    document.getElementById('closeForgottenModal').addEventListener('click', () => document.getElementById('forgottenModal').classList.remove('active'));
+  }
+  </script>`;
+  res.send(layout(user, 'Outward Orders', body + searchScript + owScript));
 });
 
 router.post('/', checkAccess, (req, res) => {
   const db   = getDb();
   const user = req.session.user;
-  const fy   = currentFY();
   const { date, to_whom_addressed, description, file_no, remarks } = req.body;
+  const fy   = getFY(date);
   const d_no = db.transaction(() => {
     const max = db.prepare('SELECT MAX(d_no) as m FROM outward_orders WHERE financial_year=?').get(fy);
     const n   = (max.m || 0) + 1;
-    db.prepare(`INSERT INTO outward_orders (d_no,financial_year,date,to_whom_addressed,description,file_no,remarks,entered_by)
-      VALUES (?,?,?,?,?,?,?,?)`)
-      .run(n, fy, date, to_whom_addressed, description, file_no||'', remarks||'', user.username);
+    db.prepare('INSERT INTO outward_orders (d_no,d_no_text,financial_year,date,to_whom_addressed,description,file_no,remarks,entered_by) VALUES (?,?,?,?,?,?,?,?,?)')
+      .run(n, String(n), fy, date, to_whom_addressed, description, file_no||'', remarks||'', user.username);
     return n;
   })();
-  res.redirect(`/outward?saved=${d_no}`);
+  res.redirect('/outward?saved=' + d_no);
 });
 
 router.post('/edit', checkAccess, (req, res) => {
@@ -198,9 +403,28 @@ router.post('/edit', checkAccess, (req, res) => {
   const existing = db.prepare('SELECT * FROM outward_orders WHERE id=?').get(id);
   if (!existing) return res.redirect('/outward');
   if (user.role !== 'admin' && !isEditable(existing.created_at)) return res.status(403).send('Entry is locked.');
-  db.prepare(`UPDATE outward_orders SET date=?,to_whom_addressed=?,description=?,file_no=?,remarks=? WHERE id=?`)
+  db.prepare('UPDATE outward_orders SET date=?,to_whom_addressed=?,description=?,file_no=?,remarks=? WHERE id=?')
     .run(date, to_whom_addressed, description, file_no||'', remarks||'', id);
+  if (user.role !== 'admin') {
+    writeNotification(db, 'Outward Orders', id, 'edit', user.username,
+      'Edited D.NO ' + (existing.d_no_text||existing.d_no) + ' — ' + existing.to_whom_addressed);
+  }
   res.redirect('/outward');
+});
+
+router.post('/forgotten', (req, res) => {
+  if (req.session.user.role !== 'admin') return res.status(403).send('Admin only.');
+  const db   = getDb();
+  const user = req.session.user;
+  const { after_d_no, date, to_whom_addressed, description, file_no, remarks } = req.body;
+  const fy   = getFY(date);
+  const d_text = db.transaction(() => {
+    const suffix = getNextSuffixOutward(db, after_d_no, fy);
+    db.prepare('INSERT INTO outward_orders (d_no,d_no_text,financial_year,date,to_whom_addressed,description,file_no,remarks,entered_by) VALUES (?,?,?,?,?,?,?,?,?)')
+      .run(parseInt(after_d_no), suffix, fy, date, to_whom_addressed, description, file_no||'', remarks||'', user.username);
+    return suffix;
+  })();
+  res.redirect('/outward?saved=' + d_text);
 });
 
 router.post('/:id/delete', (req, res) => {
