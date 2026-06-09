@@ -9,7 +9,7 @@ const ALLOWED = ['admin','user2'];
 
 const FILE_NO_PREFIXES = ['33', '73', '74', '75'];
 
-function getNextSuffixPO(db, baseNum, fy) {
+function getNextSuffixPO(db, baseNum, fy) { //Function that figures out the next suffix for a forgotten entry
   const rows = db.prepare(
     `SELECT sl_no_text FROM purchase_orders WHERE financial_year=? AND sl_no_text LIKE ?`
   ).all(fy, baseNum + '%');
@@ -86,7 +86,7 @@ router.get('/', checkAccess, (req, res) => {
     <div class="page-header">
       <div>
         <div class="page-title">Purchase orders</div>
-        <div class="page-sub">${rows.length} entries · FY ${fy}''</div>
+        <div class="page-sub">${rows.length} entries · FY ${fy}</div>
       </div>
       <div class="header-actions">
         <select id="fySelect" class="filter-select">${fyOptions}</select>
@@ -446,7 +446,7 @@ router.post('/edit', checkAccess, (req, res) => {
   const { id, date, sap_po_no, name_supplier, description, qty, rate, po_cost, gst_percent, total, file_no, sign } = req.body;
   const existing = db.prepare('SELECT * FROM purchase_orders WHERE id=?').get(id);
   if (!existing) return res.redirect('/purchase-orders');
-  if (user.role !== 'admin' && !isEditable(existing.created_at)) return res.status(403).send('Entry is locked.');
+  if (user.role !== 'admin' && user.role !== 'user1' && !isEditable(existing.created_at)) return res.status(403).send('Entry is locked.');
   db.prepare(`UPDATE purchase_orders SET date=?,sap_po_no=?,name_supplier=?,description=?,qty=?,rate=?,po_cost=?,gst_percent=?,total=?,file_no=?,sign=? WHERE id=?`)
     .run(date, sap_po_no, name_supplier, description, parseFloat(qty), parseFloat(rate),
          parseFloat(po_cost), gst_percent, parseFloat(total), file_no||'', sign||'', id);
@@ -479,7 +479,7 @@ router.post('/forgotten', (req, res) => {
 });
 
 router.post('/:id/delete', (req, res) => {
-  if (req.session.user.role !== 'admin') return res.status(403).send('Only Admin can delete.');
+  if (!['admin','user1'].includes(req.session.user.role)) return res.status(403).send('Access denied.');
   getDb().prepare('DELETE FROM purchase_orders WHERE id=?').run(req.params.id);
   res.redirect('/purchase-orders');
 });

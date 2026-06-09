@@ -188,6 +188,16 @@ function layout(user, title, body, extraHead = '') {
       fetch('/notifications/clear-all', { method:'POST' })
         .then(() => { badge.style.display = 'none'; loadNotifs(); });
     });
+
+    document.getElementById('clearAllNotif').addEventListener('click', function() {
+      fetch('/notifications/clear-all', { method:'POST' })
+        .then(() => { badge.style.display = 'none'; loadNotifs(); });
+    });
+
+    document.getElementById('clearAllNotif').addEventListener('click', function() {
+      fetch('/notifications/clear-all', { method:'POST' })
+        .then(() => { badge.style.display = 'none'; loadNotifs(); });
+    });
   })();
   </script>` : ''}
 </body>

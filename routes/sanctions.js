@@ -63,7 +63,7 @@ router.get('/', checkAccess, (req, res) => {
     <div class="page-header">
       <div>
         <div class="page-title">Sanction Memos</div>
-        <div class="page-sub">${rows.length} entries · FY ${fy}''</div>
+        <div class="page-sub">${rows.length} entries · FY ${fy}</div>
       </div>
       <div class="header-actions">
         <select id="fySelect" class="filter-select">${fyOptions}</select>
@@ -288,7 +288,7 @@ router.post('/edit', checkAccess, (req, res) => {
   const { id, date, expenditure_details, amount, reference, signature } = req.body;
   const existing = db.prepare('SELECT * FROM sanctions WHERE id=?').get(id);
   if (!existing) return res.redirect('/sanctions');
-  if (user.role !== 'admin' && !isEditable(existing.created_at)) return res.status(403).send('Entry is locked.');
+  if (user.role !== 'admin' && user.role !== 'user1' && !isEditable(existing.created_at)) return res.status(403).send('Entry is locked.');
   db.prepare(`UPDATE sanctions SET date=?,expenditure_details=?,amount=?,reference=?,signature=? WHERE id=?`)
     .run(date, expenditure_details, parseFloat(amount), reference||'', signature||'', id);
   if (user.role !== 'admin') {
@@ -331,7 +331,7 @@ router.post('/forgotten', (req, res) => {
 });
 
 router.post('/:id/delete', (req, res) => {
-  if (req.session.user.role !== 'admin') return res.status(403).send('Only Admin can delete.');
+  if (!['admin','user1'].includes(req.session.user.role)) return res.status(403).send('Access denied.');
   getDb().prepare('DELETE FROM sanctions WHERE id=?').run(req.params.id);
   res.redirect('/sanctions');
 });

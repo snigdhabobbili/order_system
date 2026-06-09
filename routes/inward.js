@@ -91,7 +91,7 @@ router.get('/', checkAccess, (req, res) => {
     <div class="page-header">
       <div>
         <div class="page-title">Inward orders</div>
-        <div class="page-sub">${rows.length} entries · FY ${fy}''</div>
+        <div class="page-sub">${rows.length} entries · FY ${fy}</div>
       </div>
       <div class="header-actions">
         <select id="fySelect" class="filter-select">${fyOptions}</select>
@@ -401,7 +401,7 @@ router.post('/edit', checkAccess, (req, res) => {
   const { id, date, received_from, subject, file_no, remarks } = req.body;
   const existing = db.prepare('SELECT * FROM inward_orders WHERE id=?').get(id);
   if (!existing) return res.redirect('/inward');
-  if (user.role !== 'admin' && !canUserEdit(existing, user)) return res.status(403).send('You cannot edit this entry.');
+  if (user.role !== 'admin' && user.role !== 'user1' && !canUserEdit(existing, user)) return res.status(403).send('You cannot edit this entry.');
   db.prepare('UPDATE inward_orders SET date=?,received_from=?,subject=?,file_no=?,remarks=? WHERE id=?')
     .run(date, received_from, subject, file_no||'', remarks||'', id);
   if (user.role !== 'admin') {
@@ -412,7 +412,7 @@ router.post('/edit', checkAccess, (req, res) => {
 });
 
 router.post('/:id/delete', (req, res) => {
-  if (req.session.user.role !== 'admin') return res.status(403).send('Only Admin can delete.');
+  if (!['admin','user1'].includes(req.session.user.role)) return res.status(403).send('Access denied.');
   getDb().prepare('DELETE FROM inward_orders WHERE id=?').run(req.params.id);
   res.redirect('/inward');
 });

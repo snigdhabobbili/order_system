@@ -16,8 +16,8 @@ function actionButtons(row, user, isArchive, deleteBase, labelFn) {
     return '<span style="color:var(--text3);font-size:12px">—</span>';
   }
   const editable  = isEditable(row.created_at);
-  const canEdit   = user.role === 'admin' || editable;
-  const canDelete = user.role === 'admin';
+  const canEdit   = user.role === 'admin' || user.role === 'user1' || editable;
+  const canDelete = user.role === 'admin' || user.role === 'user1';
   const recordData = JSON.stringify(row).replace(/"/g,'&quot;');
   const label = labelFn(row);
   let btns = '';
@@ -77,6 +77,7 @@ function successOverlay(serialLabel, serialValue) {
 
 function canUserEdit(row, user) {
   if (user.role === 'admin') return true;
+  if (user.role === 'user1') return true;
   return isEditable(row.created_at);
 }
 

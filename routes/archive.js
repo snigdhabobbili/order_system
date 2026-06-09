@@ -11,7 +11,7 @@ router.get('/', (req, res) => {
   const fy    = req.query.fy;
 
   if (!fy || fy === curFY) return res.redirect('/dashboard');
-
+ 
   const isAdmin = user.role === 'admin';
   const isUser1 = user.role === 'user1';
   const isUser2 = user.role === 'user2';

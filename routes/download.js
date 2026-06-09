@@ -39,23 +39,27 @@ function moduleConfig(module) {
   return {
     'purchase-orders': {
       title: 'Purchase Orders',
-      headers: ['SL.NO','SAP PO No.','Date','Name & Supplier','Description','Qty','Rate (₹)','PO Cost (₹)','GST (%)','Total (₹)','F.NO','Sign','Entered By'],
-      row: r => [r.sl_no_text||r.sl_no, r.sap_po_no, r.date, r.name_supplier, r.description, r.qty, inr(r.rate), inr(r.po_cost), r.gst_percent+'%', inr(r.total), r.file_no||'', r.sign||'', r.entered_by],
+      headers: ['SL.NO','SAP PO No.','Date','Name & Supplier','Description','Qty','Rate (₹)','PO Cost (₹)','GST (%)','Total (₹)','F.NO','Sign'],
+      row: r => [r.sl_no_text||r.sl_no, r.sap_po_no, r.date, r.name_supplier, r.description, r.qty, inr(r.rate), inr(r.po_cost), r.gst_percent+'%', inr(r.total), r.file_no||'', r.sign||''],
+      colWidths: [0.05, 0.09, 0.08, 0.12, 0.24, 0.04, 0.08, 0.08, 0.05, 0.08, 0.05, 0.14],
     },
     'sanctions': {
       title: 'Sanctions',
-      headers: ['SL.NO','Sanction No.','Date','Expenditure Details','Amount (₹)','Reference','Signature','Entered By'],
-      row: r => [r.sl_no_text||r.sl_no, r.sanction_no, r.date, r.expenditure_details, inr(r.amount), r.reference||'', r.signature||'', r.entered_by],
+      headers: ['SL.NO','Sanction No.','Date','Expenditure Details','Amount (₹)','Reference','Signature'],
+      row: r => [r.sl_no_text||r.sl_no, r.sanction_no, r.date, r.expenditure_details, inr(r.amount), r.reference||'', r.signature||''],
+      colWidths: [0.06, 0.08, 0.09, 0.38, 0.1, 0.17, 0.12],
     },
     'inward': {
       title: 'Inward Orders',
-      headers: ['C.NO','Date','Received From','Subject','File No.','Remarks','Entered By'],
-      row: r => [r.c_no_text||r.c_no, r.date, r.received_from, r.subject, r.file_no||'', r.remarks||'', r.entered_by],
+      headers: ['C.NO','Date','Received From','Subject','File No.','Remarks'],
+      row: r => [r.c_no_text||r.c_no, r.date, r.received_from, r.subject, r.file_no||'', r.remarks||''],
+      colWidths: [0.06, 0.1, 0.2, 0.4, 0.1, 0.14],
     },
     'outward': {
       title: 'Outward Orders',
-      headers: ['D.NO','Date','To Whom Addressed','Description/Subject','File No.','Remarks','Entered By'],
-      row: r => [r.d_no_text||r.d_no, r.date, r.to_whom_addressed, r.description, r.file_no||'', r.remarks||'', r.entered_by],
+      headers: ['D.NO','Date','To Whom Addressed','Description/Subject','File No.','Remarks'],
+      row: r => [r.d_no_text||r.d_no, r.date, r.to_whom_addressed, r.description, r.file_no||'', r.remarks||''],
+      colWidths: [0.06, 0.1, 0.2, 0.4, 0.1, 0.14],
     },
   }[module] || null;
 }
@@ -125,25 +129,45 @@ router.get('/:module/pdf', (req, res) => {
   doc.moveDown(0.5);
 
   const pageW = doc.page.width - 60;
-  const colW  = pageW / cfg.headers.length;
-  const rowH  = 20;
   let y = doc.y;
+
+  // Use custom column widths if defined, otherwise equal widths
+  const colWidths = cfg.colWidths
+    ? cfg.colWidths.map(w => w * pageW)
+    : cfg.headers.map(() => pageW / cfg.headers.length);
 
   function drawRow(cells, isHeader) {
     const x = 30;
-    doc.rect(x, y, pageW, rowH).fill(isHeader ? '#0f2a4a' : '#f4f6f9').stroke('#d8dce4');
+    const fontSize = isHeader ? 7.5 : 7;
+    doc.fontSize(fontSize);
+
+    // Calculate row height based on tallest cell
+    let maxHeight = 16;
+    if (!isHeader) {
+      cells.forEach((cell, i) => {
+        const cw = colWidths[i];
+        const textHeight = doc.heightOfString(String(cell||''), { width: cw - 6 });
+        if (textHeight + 8 > maxHeight) maxHeight = textHeight + 8;
+      });
+      maxHeight = Math.min(maxHeight, 120); // cap at 120px
+    }
+
+    doc.rect(x, y, pageW, maxHeight).fill(isHeader ? '#0f2a4a' : '#f4f6f9').stroke('#d8dce4');
+    let cx = x;
     cells.forEach((cell, i) => {
+      const cw = colWidths[i];
       doc.fillColor(isHeader ? '#ffffff' : '#1a1f2e')
-         .fontSize(isHeader ? 7.5 : 7)
-         .text(String(cell||''), x + i*colW + 3, y + 5, { width:colW-6, height:rowH-4, ellipsis:true, lineBreak:false });
+         .fontSize(fontSize)
+         .text(String(cell||''), cx + 3, y + 4, { width: cw - 6, height: maxHeight - 6, lineBreak: true });
+      cx += cw;
     });
-    y += rowH;
+    y += maxHeight;
     if (y > doc.page.height - 50) { doc.addPage({ layout:'landscape', margin:30 }); y = 30; }
   }
 
   drawRow(cfg.headers, true);
   rows.forEach(r => drawRow(cfg.row(r), false));
-  doc.fontSize(8).fillColor('#9ca3af').text(`Total: ${rows.length} entries`, { align:'right' });
+  doc.fontSize(8).fillColor('#9ca3af').text(`Total: ${rows.length} entries`, 30, y + 10, { width: pageW - 30 });
   doc.end();
 });
 

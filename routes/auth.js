@@ -1,67 +1,67 @@
-const express = require('express');
-const svgCaptcha = require('svg-captcha');
-const router  = express.Router();
-const bcrypt  = require('bcrypt');
-const crypto  = require('crypto');
-const getDb   = require('../db');
+const express = require('express');  // import webframework
+const svgCaptcha = require('svg-captcha'); //generates the distorted letter image
+const router  = express.Router(); //a mini Express app just for auth routes (login/logout)
+const bcrypt  = require('bcrypt'); //for checking hashed passwords
+const crypto  = require('crypto'); //for generating random tokens
+const getDb   = require('../db'); //opens the database (from db/index.js)
 
-const captchaStore = new Map();
+const captchaStore = new Map(); //Creates an empty Map (like a Python dictionary) to temporarily store captchas
 
 function generateCaptcha() {
   const captcha = svgCaptcha.create({
-    size: 6,
-    noise: 3,
-    color: true,
-    background: '#d9dadc',
+    size: 6, //6 characters long
+    noise: 3, //3 random lines drawn over it to make it harder to read by bots
+    color: true, //each letter is a different colour
+    background: '#d9dadc', // grey background colour
     width: 160,
     height: 50,
     fontSize: 52,
-    charPreset: 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+    charPreset: 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789' //only use these characters (no O/0/I/1 which look similar)
   });
-  const token = crypto.randomBytes(16).toString('hex');
-  captchaStore.set(token, { text: captcha.text, expires: Date.now() + 5 * 60 * 1000 });
-  for (const [k, v] of captchaStore) if (v.expires < Date.now()) captchaStore.delete(k);
-  return { svg: captcha.data, token };
+  const token = crypto.randomBytes(16).toString('hex');  // Generate a unique 32-character token to identify and validate this captcha
+  captchaStore.set(token, { text: captcha.text, expires: Date.now() + 5 * 60 * 1000 }); //Save the captcha answer in memory with a 5-minute expiry
+  for (const [k, v] of captchaStore) if (v.expires < Date.now()) captchaStore.delete(k); //Clean up any expired captchas from memory
+  return { svg: captcha.data, token }; //Return two things:svg — the captcha image as SVG code (sent to the browser to display),token — the random ID (sent as a hidden field in the form)
 }
 
-function verifyCaptcha(token, input) {
-  const entry = captchaStore.get(token);
-  if (!entry) return false;
-  if (entry.expires < Date.now()) { captchaStore.delete(token); return false; }
-  const ok = entry.text.toUpperCase() === (input||'').toUpperCase().trim();
+function verifyCaptcha(token, input) { //Function that checks if the user typed the captcha correctly
+  const entry = captchaStore.get(token); 
+  if (!entry) return false; //Look up the token in the store. If not found, return false 
+  if (entry.expires < Date.now()) { captchaStore.delete(token); return false; } //If the captcha has expired (older than 5 minutes), delete it and return false.
+  const ok = entry.text.toUpperCase() === (input||'').toUpperCase().trim(); //Compare the correct answer with what the user typed 
   captchaStore.delete(token);
-  return ok;
+  return ok; //Delete the captcha from memory (so it can't be reused) then return true or false
 }
 
 router.get('/login', (req, res) => {
-  if (req.session.user) return res.redirect('/dashboard');
+  if (req.session.user) return res.redirect('/dashboard'); //When browser visits /login: If the user is already logged in (session exists), send them to dashboard instead
   const cap = generateCaptcha();
   res.send(loginPage(cap, '', ''));
 });
 
 router.post('/login', (req, res) => {
-  const { username, password, captchaToken, captchaInput } = req.body;
+  const { username, password, captchaToken, captchaInput } = req.body; //When the login form is submitted: Extract username, password, captchaToken and captchaInput from the form data
   if (!verifyCaptcha(captchaToken, captchaInput)) {
-    const cap = generateCaptcha();
+    const cap = generateCaptcha(); //Check the captcha first. If wrong: Generate a new captcha and reload the login page with an error message
     return res.send(loginPage(cap, username, 'Incorrect captcha. Please try again.'));
   }
-  const db   = getDb();
-  const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username);
+  const db   = getDb(); 
+  const user = db.prepare('SELECT * FROM users WHERE username = ?').get(username); //Open the database and look for a user with that username
   if (!user || !bcrypt.compareSync(password, user.password)) {
     const cap = generateCaptcha();
     return res.send(loginPage(cap, username, 'Invalid username or password.'));
   }
   req.session.user = { id: user.id, username: user.username, role: user.role };
-  res.redirect('/dashboard');
+  res.redirect('/dashboard'); //Login successful: Save the user's identity in the session (this is what keeps them logged in)
 });
 
 router.post('/logout', (req, res) => {
-  req.session.destroy(() => res.redirect('/login'));
+  req.session.destroy(() => res.redirect('/login')); //When Sign Out is clicked: Destroy the session completely (removes it from sessions.db) then redirect to login page.
 });
 
-router.get('/captcha/new', (req, res) => {
-  const cap = generateCaptcha();
-  res.json({ svg: cap.svg, token: cap.token });
+router.get('/captcha/new', (req, res) => { //A special route just for refreshing the captcha
+  const cap = generateCaptcha(); // When user clicks the refresh button, the browser calls this URL
+  res.json({ svg: cap.svg, token: cap.token }); //Returns JSON with a new SVG image and new token — no full page reload needed
 });
 
 function loginPage(cap, username, error) {

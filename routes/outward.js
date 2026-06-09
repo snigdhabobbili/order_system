@@ -402,7 +402,7 @@ router.post('/edit', checkAccess, (req, res) => {
   const { id, date, to_whom_addressed, description, file_no, remarks } = req.body;
   const existing = db.prepare('SELECT * FROM outward_orders WHERE id=?').get(id);
   if (!existing) return res.redirect('/outward');
-  if (user.role !== 'admin' && !isEditable(existing.created_at)) return res.status(403).send('Entry is locked.');
+  if (user.role !== 'admin' && user.role !== 'user1' && !isEditable(existing.created_at)) return res.status(403).send('Entry is locked.');
   db.prepare('UPDATE outward_orders SET date=?,to_whom_addressed=?,description=?,file_no=?,remarks=? WHERE id=?')
     .run(date, to_whom_addressed, description, file_no||'', remarks||'', id);
   if (user.role !== 'admin') {
@@ -428,7 +428,7 @@ router.post('/forgotten', (req, res) => {
 });
 
 router.post('/:id/delete', (req, res) => {
-  if (req.session.user.role !== 'admin') return res.status(403).send('Only Admin can delete.');
+  if (!['admin','user1'].includes(req.session.user.role)) return res.status(403).send('Access denied.');
   getDb().prepare('DELETE FROM outward_orders WHERE id=?').run(req.params.id);
   res.redirect('/outward');
 });

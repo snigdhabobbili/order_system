@@ -4,10 +4,12 @@ const getDb   = require('../db');
 const { layout } = require('../views/layout');
 const { currentFY, getPastFYs } = require('../db/fy');
 
-router.get('/', (req, res) => {
-  const db   = getDb();
-  const fy   = currentFY();
-  const user = req.session.user;
+router.get('/', (req, res) => { //When someone visits /dashboard, run this function
+   //req — the incoming request (who is logged in, what they're asking for)
+   //res — what to send back to the browser
+  const db   = getDb(); // open database connection
+  const fy   = currentFY(); //current financial year e.g. "2026-2027"
+  const user = req.session.user; //who is logged in (from their session) e.g. { username: 'admin', role: 'admin' }
 
   const poCount  = db.prepare('SELECT COUNT(*) as c FROM purchase_orders WHERE financial_year=?').get(fy).c;
   const saCount  = db.prepare('SELECT COUNT(*) as c FROM sanctions WHERE financial_year=?').get(fy).c;
