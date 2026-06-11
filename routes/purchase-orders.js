@@ -86,7 +86,7 @@ router.get('/', checkAccess, (req, res) => {
     <div class="page-header">
       <div>
         <div class="page-title">Purchase orders</div>
-        <div class="page-sub">${rows.length} entries · FY ${fy}</div>
+        <div class="page-sub">${rows.length} entries · FY ${fy}''</div>
       </div>
       <div class="header-actions">
         <select id="fySelect" class="filter-select">${fyOptions}</select>
@@ -192,10 +192,10 @@ router.get('/', checkAccess, (req, res) => {
               <div class="form-section-label">Reference &amp; Approval</div>
               <div class="form-group">
                 <label>F.NO <span class="req">*</span></label>
-                <select name="file_no_prefix" required id="addFnoSelect" class="filter-select" style="width:100%">
+                <select name="file_no_prefix" class="filter-select" style="width:100%" required id="addFnoSelect">
                   <option value="">— None —</option>
                   <option value="19">19 - DE/IT</option>
-                  <option value="33">33 - DE/IT 2</option>
+                  <option value="33">33 - DE/Telecom </option>
                   <option value="74">74 - DE/Basis</option>
                   <option value="75">75 - DE/IT 2</option>
                 </select>
@@ -212,7 +212,10 @@ router.get('/', checkAccess, (req, res) => {
           <span class="modal-footer-note"><i class="ti ti-info-circle"></i> SL.NO assigned at the moment you save</span>
           <div class="modal-footer-actions">
             <button class="btn btn-outline" id="cancelAdd">Cancel</button>
-            <button class="btn btn-primary" onclick="var sel=document.getElementById('addFnoSelect');if(!sel.value){sel.focus();alert('Please select an F.NO before saving.');return;}document.getElementById('addForm').submit();">
+            <button class="btn btn-primary" onclick="
+              var sel = document.getElementById('addFnoSelect');
+              if (!sel.value) { sel.focus(); alert('Please select an F.NO before saving.'); return; }
+              document.getElementById('addForm').submit();">
               <i class="ti ti-device-floppy"></i> Save entry
             </button>
           </div>
@@ -281,10 +284,10 @@ router.get('/', checkAccess, (req, res) => {
                 <label>F.NO</label>
                 <select name="file_no_prefix" class="filter-select" style="width:100%">
                   <option value="">— None —</option>
-                  <option value="33">33</option>
-                  <option value="73">73</option>
-                  <option value="74">74</option>
-                  <option value="75">75</option>
+                  <option value="19">19 - DE/IT</option>
+                  <option value="33">33 - DE/Telecom </option>
+                  <option value="74">74 - DE/Basis</option>
+                  <option value="75">75 - DE/IT 2</option>
                 </select>
                 <span class="field-hint">System assigns the suffix (e.g. 74-2) automatically</span>
               </div>

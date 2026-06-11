@@ -5,12 +5,11 @@ const { layout, isEditable } = require('../views/layout');
 const { getFY, currentFY, getPastFYs } = require('../db/fy');
 const { actionButtons, statusBadge, confirmOverlay, successOverlay, fmtDate, canUserEdit, writeNotification } = require('../views/helpers');
 
-// Search filter values — add more here when available
 const RECEIVED_FROM_VALUES = [
   'CMD', 'Director (Grid and Transmission Management',
-  'Director (Projects)','Director (Finance)','Director (Lift Irrigation & Schemes)','Director (Grid Operations)','ED/Comml/TGPCC	',
-  'CGM/HRD	','CE/IT	','CE/Transmission	','CE/Construction-I	','CE/Construction-II	',
-  'CE/ P& MM	','CE/400KV	','CE/Telecom' , 'CE/Comml & RAC', 'CE/ Civil', 'CE/SLDC ( FAC)', 'CE/LIS- Incharge', 'CE/PR/LIS', 'CE/Power System', 'Joint Secretary', 'FA&CCA(R&A & CFO)(I/C)', 'FA&CCA /TGPCC (I/C)', 'CE/Digitalization', 'CE/Training/CTI', 'CE/Metro', 'CE/Rural','CE/ Warangal', 'CE/400kV Wgl', 'CE/Karimnagar',
+  'Director (Projects)','Director (Finance)','Director (Lift Irrigation & Schemes)','Director (Grid Operations)','ED/Comml/TGPCC',
+  'CGM/HRD','CE/IT','CE/Transmission','CE/Construction-I','CE/Construction-II',
+  'CE/ P& MM','CE/400KV','CE/Telecom' , 'CE/Comml & RAC', 'CE/ Civil', 'CE/SLDC ( FAC)', 'CE/LIS- Incharge', 'CE/PR/LIS', 'CE/Power System', 'Joint Secretary', 'FA&CCA(R&A & CFO)(I/C)', 'FA&CCA /TGPCC (I/C)', 'CE/Digitalization', 'CE/Training/CTI', 'CE/Metro', 'CE/Rural','CE/ Warangal', 'CE/400kV Wgl', 'CE/Karimnagar',
 ];
 
 const ALLOWED = ['admin','user1'];
@@ -38,7 +37,6 @@ router.get('/', checkAccess, (req, res) => {
   const pastFYs   = getPastFYs(db, 'inward_orders');
   const rows = db.prepare('SELECT * FROM inward_orders WHERE financial_year=? ORDER BY rowid ASC').all(fy);
 
-  // Sort by c_no_text
   rows.sort((a, b) => {
     const aStr = String(a.c_no_text || a.c_no);
     const bStr = String(b.c_no_text || b.c_no);
@@ -83,6 +81,8 @@ router.get('/', checkAccess, (req, res) => {
 
   const statusColHeader = showStatus ? '<th>Status</th>' : '';
   const colSpan = showStatus ? '9' : '8';
+
+  const fromDatalist = RECEIVED_FROM_VALUES.map(v => `<option value="${v}"/>`).join('');
 
   const body = `
     ${req.query.saved ? successOverlay('C.NO', req.query.saved) : ''}
@@ -167,7 +167,7 @@ router.get('/', checkAccess, (req, res) => {
                 <label>Received From <span class="req">*</span></label>
                 <input type="text" name="received_from" required autocomplete="off" list="from-list"/>
                 <datalist id="from-list">
-                  ${RECEIVED_FROM_VALUES.map(v => `<option value="${v}"/>`).join('')}
+                  ${fromDatalist}
                 </datalist>
               </div>
               <div class="form-group full">
@@ -220,7 +220,10 @@ router.get('/', checkAccess, (req, res) => {
               </div>
               <div class="form-group">
                 <label>Received From <span class="req">*</span></label>
-                <input type="text" name="received_from" required autocomplete="off"/>
+                <input type="text" name="received_from" required autocomplete="off" list="forgotten-from-list"/>
+                <datalist id="forgotten-from-list">
+                  ${fromDatalist}
+                </datalist>
               </div>
               <div class="form-group full">
                 <label>Subject <span class="req">*</span></label>
@@ -300,7 +303,6 @@ router.get('/', checkAccess, (req, res) => {
       window.location.href = '/inward?fy=' + encodeURIComponent(this.value);
     });
 
-    // Forgotten modal
     const forgottenBtn = document.getElementById('forgottenEntryBtn');
     if (forgottenBtn) {
       forgottenBtn.addEventListener('click', () => document.getElementById('forgottenModal').classList.add('active'));
@@ -308,7 +310,6 @@ router.get('/', checkAccess, (req, res) => {
       document.getElementById('closeForgottenModal').addEventListener('click', () => document.getElementById('forgottenModal').classList.remove('active'));
     }
 
-    // Dropdown toggle
     document.getElementById('fromDropdownBtn').addEventListener('click', function(e) {
       e.stopPropagation();
       document.getElementById('fromDropdownPanel').classList.toggle('open');
@@ -316,7 +317,6 @@ router.get('/', checkAccess, (req, res) => {
     document.addEventListener('click', () => document.getElementById('fromDropdownPanel').classList.remove('open'));
     document.getElementById('fromDropdownPanel').addEventListener('click', e => e.stopPropagation());
 
-    // Select all
     document.getElementById('checkAll').addEventListener('change', function() {
       document.querySelectorAll('.from-check').forEach(cb => { cb.checked = this.checked; });
       filterTable();
