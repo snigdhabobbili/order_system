@@ -37,7 +37,7 @@ function getCurrentFinancialYear() {
   const month = now.getMonth() + 1; // 1-based
   const year  = now.getFullYear();
   const startYear = month >= 4 ? year : year - 1;
-  return `${startYear}-${String(startYear + 1).slice(-2)}`;
+  return `${startYear}-${startYear + 1}`;
 }
 
 // ── Logging helper ─────────────────────────────────────────────────────────

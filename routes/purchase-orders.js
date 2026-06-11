@@ -7,7 +7,7 @@ const { actionButtons, statusBadge, inr, confirmOverlay, successOverlay, fmtDate
 
 const ALLOWED = ['admin','user2'];
 
-const FILE_NO_PREFIXES = ['33', '73', '74', '75'];
+const FILE_NO_PREFIXES = ['19', '33', '74', '75'];
 
 function getNextSuffixPO(db, baseNum, fy) { //Function that figures out the next suffix for a forgotten entry
   const rows = db.prepare(
@@ -191,13 +191,13 @@ router.get('/', checkAccess, (req, res) => {
               </div>
               <div class="form-section-label">Reference &amp; Approval</div>
               <div class="form-group">
-                <label>F.NO</label>
-                <select name="file_no_prefix" class="filter-select" style="width:100%">
+                <label>F.NO <span class="req">*</span></label>
+                <select name="file_no_prefix" required id="addFnoSelect" class="filter-select" style="width:100%">
                   <option value="">— None —</option>
-                  <option value="33">33</option>
-                  <option value="73">73</option>
-                  <option value="74">74</option>
-                  <option value="75">75</option>
+                  <option value="19">19 - DE/IT</option>
+                  <option value="33">33 - DE/IT 2</option>
+                  <option value="74">74 - DE/Basis</option>
+                  <option value="75">75 - DE/IT 2</option>
                 </select>
                 <span class="field-hint">System assigns the suffix (e.g. 74-2) automatically</span>
               </div>
@@ -212,7 +212,7 @@ router.get('/', checkAccess, (req, res) => {
           <span class="modal-footer-note"><i class="ti ti-info-circle"></i> SL.NO assigned at the moment you save</span>
           <div class="modal-footer-actions">
             <button class="btn btn-outline" id="cancelAdd">Cancel</button>
-            <button class="btn btn-primary" onclick="document.getElementById('addForm').submit()">
+            <button class="btn btn-primary" onclick="var sel=document.getElementById('addFnoSelect');if(!sel.value){sel.focus();alert('Please select an F.NO before saving.');return;}document.getElementById('addForm').submit();">
               <i class="ti ti-device-floppy"></i> Save entry
             </button>
           </div>
