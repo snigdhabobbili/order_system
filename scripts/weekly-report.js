@@ -67,7 +67,7 @@ const SHEETS = [
       { key: 'total',         header: 'Total (₹)',       width: 14 },
       { key: 'file_no',       header: 'File No.',        width: 12 },
       { key: 'sign',          header: 'Sign',            width: 10 },
-      { key: 'entered_by',    header: 'Entered By',      width: 12 },
+      
       { key: 'created_at',    header: 'Created At',      width: 18 },
     ],
   },
@@ -82,7 +82,7 @@ const SHEETS = [
       { key: 'amount',              header: 'Amount (₹)',          width: 14 },
       { key: 'reference',           header: 'Reference',           width: 20 },
       { key: 'signature',           header: 'Signature',           width: 12 },
-      { key: 'entered_by',          header: 'Entered By',          width: 12 },
+      
       { key: 'created_at',          header: 'Created At',          width: 18 },
     ],
   },
@@ -96,7 +96,7 @@ const SHEETS = [
       { key: 'subject',       header: 'Subject',        width: 38 },
       { key: 'file_no',       header: 'File No.',       width: 12 },
       { key: 'remarks',       header: 'Remarks',        width: 24 },
-      { key: 'entered_by',    header: 'Entered By',     width: 12 },
+      
       { key: 'created_at',    header: 'Created At',     width: 18 },
     ],
   },
@@ -110,7 +110,7 @@ const SHEETS = [
       { key: 'description',       header: 'Description',      width: 38 },
       { key: 'file_no',           header: 'File No.',         width: 12 },
       { key: 'remarks',           header: 'Remarks',          width: 24 },
-      { key: 'entered_by',        header: 'Entered By',       width: 12 },
+     
       { key: 'created_at',        header: 'Created At',       width: 18 },
     ],
   },
