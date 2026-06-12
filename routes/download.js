@@ -39,14 +39,14 @@ function moduleConfig(module) {
   return {
     'purchase-orders': {
       title: 'Purchase Orders',
-      headers: ['SL.NO','SAP PO No.','Date','Name & Supplier','Description','Qty','Rate (₹)','PO Cost (₹)','GST (%)','Total (₹)','F.NO','Sign'],
-      row: r => [r.sl_no_text||r.sl_no, r.sap_po_no, r.date, r.name_supplier, r.description, r.qty, inr(r.rate), inr(r.po_cost), r.gst_percent+'%', inr(r.total), r.file_no||'', r.sign||''],
+      headers: ['SL.NO','SAP PO No.','Date','Name & Supplier','Description','Qty','Rate','PO Cost','GST (%)','Total','F.NO','Sign'],
+      row: r => [r.sl_no_text||r.sl_no, r.sap_po_no, r.date, r.name_supplier, r.description, r.qty, parseFloat(r.rate||0).toLocaleString('en-IN',{minimumFractionDigits:2}), parseFloat(r.po_cost||0).toLocaleString('en-IN',{minimumFractionDigits:2}), (r.gst_percent||'')+'%', parseFloat(r.total||0).toLocaleString('en-IN',{minimumFractionDigits:2}), r.file_no||'', r.sign||''],
       colWidths: [0.05, 0.09, 0.08, 0.12, 0.24, 0.04, 0.08, 0.08, 0.05, 0.08, 0.05, 0.14],
     },
     'sanctions': {
       title: 'Sanctions',
-      headers: ['SL.NO','Sanction No.','Date','Expenditure Details','Amount (₹)','Reference','Signature'],
-      row: r => [r.sl_no_text||r.sl_no, r.sanction_no, r.date, r.expenditure_details, inr(r.amount), r.reference||'', r.signature||''],
+      headers: ['SL.NO','Sanction No.','Date','Expenditure Details','Amount','Reference','Signature'],
+      row: r => [r.sl_no_text||r.sl_no, r.sanction_no, r.date, r.expenditure_details, parseFloat(r.amount||0).toLocaleString('en-IN',{minimumFractionDigits:2}), r.reference||'', r.signature||''],
       colWidths: [0.06, 0.08, 0.09, 0.38, 0.1, 0.17, 0.12],
     },
     'inward': {

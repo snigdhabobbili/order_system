@@ -281,8 +281,8 @@ router.get('/', checkAccess, (req, res) => {
                 <input type="hidden" name="total" id="f_total_hidden" value="0"/>
               </div>
               <div class="form-group">
-                <label>F.NO</label>
-                <select name="file_no_prefix" class="filter-select" style="width:100%">
+                <label>F.NO <span class="req">*</span></label>
+                <select name="file_no_prefix" class="filter-select" style="width:100%" required id="forgottenFnoSelect">
                   <option value="">— None —</option>
                   <option value="19">19 - DE/IT</option>
                   <option value="33">33 - DE/Telecom </option>
@@ -302,7 +302,7 @@ router.get('/', checkAccess, (req, res) => {
           <span class="modal-footer-note"><i class="ti ti-info-circle"></i> Suffix SL.NO assigned automatically e.g. 4A</span>
           <div class="modal-footer-actions">
             <button class="btn btn-outline" id="cancelForgotten">Cancel</button>
-            <button class="btn btn-primary" onclick="document.getElementById('forgottenForm').submit()">
+            <button class="btn btn-primary" onclick="var sel=document.getElementById('forgottenFnoSelect');if(!sel.value){sel.focus();alert('Please select an F.NO before saving.');return;}document.getElementById('forgottenForm').submit();">
               <i class="ti ti-device-floppy"></i> Save forgotten entry
             </button>
           </div>

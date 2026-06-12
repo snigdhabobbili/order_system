@@ -175,8 +175,8 @@ router.get('/', checkAccess, (req, res) => {
                 <input type="text" name="subject" required autocomplete="off"/>
               </div>
               <div class="form-group">
-                <label>File No.</label>
-                <input type="text" name="file_no" autocomplete="off"/>
+                <label>File No. <span class="req">*</span></label>
+                <input type="text" name="file_no" required autocomplete="off"/>
               </div>
               <div class="form-group">
                 <label>Remarks</label>
@@ -230,8 +230,8 @@ router.get('/', checkAccess, (req, res) => {
                 <input type="text" name="subject" required autocomplete="off"/>
               </div>
               <div class="form-group">
-                <label>File No.</label>
-                <input type="text" name="file_no" autocomplete="off"/>
+                <label>File No. <span class="req">*</span></label>
+                <input type="text" name="file_no" required autocomplete="off"/>
               </div>
               <div class="form-group">
                 <label>Remarks</label>
