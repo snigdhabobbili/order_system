@@ -86,7 +86,7 @@ router.get('/', checkAccess, (req, res) => {
     <div class="page-header">
       <div>
         <div class="page-title">Purchase orders</div>
-        <div class="page-sub">${rows.length} entries · FY ${fy}''</div>
+        <div class="page-sub">${rows.length} entries · FY ${fy}</div>
       </div>
       <div class="header-actions">
         <select id="fySelect" class="filter-select">${fyOptions}</select>
@@ -192,8 +192,8 @@ router.get('/', checkAccess, (req, res) => {
               <div class="form-section-label">Reference &amp; Approval</div>
               <div class="form-group">
                 <label>F.NO <span class="req">*</span></label>
-                <select name="file_no_prefix" class="filter-select" style="width:100%" required id="addFnoSelect">
-                  <option value="">— None —</option>
+                <select name="file_no_prefix" class="filter-select" style="width:100%" required>
+                  <option value="">— Select F.NO —</option>
                   <option value="19">19 - DE/IT</option>
                   <option value="33">33 - DE/Telecom </option>
                   <option value="74">74 - DE/Basis</option>
@@ -212,10 +212,7 @@ router.get('/', checkAccess, (req, res) => {
           <span class="modal-footer-note"><i class="ti ti-info-circle"></i> SL.NO assigned at the moment you save</span>
           <div class="modal-footer-actions">
             <button class="btn btn-outline" id="cancelAdd">Cancel</button>
-            <button class="btn btn-primary" onclick="
-              var sel = document.getElementById('addFnoSelect');
-              if (!sel.value) { sel.focus(); alert('Please select an F.NO before saving.'); return; }
-              document.getElementById('addForm').submit();">
+            <button type="submit" form="addForm" class="btn btn-primary">
               <i class="ti ti-device-floppy"></i> Save entry
             </button>
           </div>
@@ -271,8 +268,8 @@ router.get('/', checkAccess, (req, res) => {
                 <input type="hidden" name="po_cost" id="f_po_cost_hidden" value="0"/>
               </div>
               <div class="form-group">
-                <label>GST (%)</label>
-                <input type="text" name="gst_percent" id="f_gst_percent" autocomplete="off"/>
+                <label>GST (%) <span class="req">*</span></label>
+                <input type="text" name="gst_percent" id="f_gst_percent" required autocomplete="off"/>
               </div>
               <div class="form-group full">
                 <label>Total (₹)</label>
@@ -282,8 +279,8 @@ router.get('/', checkAccess, (req, res) => {
               </div>
               <div class="form-group">
                 <label>F.NO <span class="req">*</span></label>
-                <select name="file_no_prefix" class="filter-select" style="width:100%" required id="forgottenFnoSelect">
-                  <option value="">— None —</option>
+                <select name="file_no_prefix" class="filter-select" style="width:100%" id="forgottenFnoSelect" required>
+                  <option value="">— Select F.NO —</option>
                   <option value="19">19 - DE/IT</option>
                   <option value="33">33 - DE/Telecom </option>
                   <option value="74">74 - DE/Basis</option>
@@ -302,7 +299,7 @@ router.get('/', checkAccess, (req, res) => {
           <span class="modal-footer-note"><i class="ti ti-info-circle"></i> Suffix SL.NO assigned automatically e.g. 4A</span>
           <div class="modal-footer-actions">
             <button class="btn btn-outline" id="cancelForgotten">Cancel</button>
-            <button class="btn btn-primary" onclick="var sel=document.getElementById('forgottenFnoSelect');if(!sel.value){sel.focus();alert('Please select an F.NO before saving.');return;}document.getElementById('forgottenForm').submit();">
+            <button type="submit" form="forgottenForm" class="btn btn-primary">
               <i class="ti ti-device-floppy"></i> Save forgotten entry
             </button>
           </div>
@@ -378,7 +375,7 @@ router.get('/', checkAccess, (req, res) => {
           <span></span>
           <div class="modal-footer-actions">
             <button class="btn btn-outline" id="cancelEdit">Cancel</button>
-            <button class="btn btn-primary" onclick="document.getElementById('editForm').submit()">
+            <button type="submit" form="editForm" class="btn btn-primary">
               <i class="ti ti-device-floppy"></i> Save changes
             </button>
           </div>
@@ -427,6 +424,8 @@ router.post('/', checkAccess, (req, res) => {
   const db   = getDb();
   const user = req.session.user;
   const { date, sap_po_no, name_supplier, description, qty, rate, po_cost, gst_percent, total, file_no_prefix, sign } = req.body;
+  if (!file_no_prefix) return res.redirect('/purchase-orders');
+  if (!gst_percent) return res.redirect('/purchase-orders');
   const fy   = getFY(date);
   const sl_no = db.transaction(() => {
     const max = db.prepare('SELECT MAX(sl_no) as m FROM purchase_orders WHERE financial_year=?').get(fy);
@@ -436,8 +435,8 @@ router.post('/', checkAccess, (req, res) => {
       (sl_no,sl_no_text,financial_year,date,sap_po_no,name_supplier,description,qty,rate,po_cost,gst_percent,total,file_no,sign,entered_by)
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
       .run(n, String(n), fy, date, sap_po_no, name_supplier, description,
-           parseFloat(qty), parseFloat(rate), parseFloat(po_cost),
-           gst_percent, parseFloat(total), file_no, sign||'', user.username);
+           parseFloat(qty)||0, parseFloat(rate)||0, parseFloat(po_cost)||0,
+           gst_percent||'0', parseFloat(total)||0, file_no, sign||'', user.username);
     return n;
   })();
   res.redirect(`/purchase-orders?saved=${sl_no}`);
@@ -464,7 +463,12 @@ router.post('/forgotten', (req, res) => {
   if (req.session.user.role !== 'admin') return res.status(403).send('Admin only.');
   const db   = getDb();
   const user = req.session.user;
+  console.log('FORGOTTEN FORM DATA:', req.body);
   const { after_sl_no, date, sap_po_no, name_supplier, description, qty, rate, gst_percent, total, file_no_prefix, sign } = req.body;
+  if (!after_sl_no || isNaN(parseInt(after_sl_no))) return res.redirect('/purchase-orders');
+  if (!date || !sap_po_no || !name_supplier || !description) return res.redirect('/purchase-orders');
+  if (!file_no_prefix) return res.redirect('/purchase-orders');
+  if (!gst_percent) return res.redirect('/purchase-orders');
   const fy   = getFY(date);
   const po_cost = (parseFloat(qty)||0) * (parseFloat(rate)||0);
   const sl_text = db.transaction(() => {
@@ -473,7 +477,7 @@ router.post('/forgotten', (req, res) => {
     db.prepare(`INSERT INTO purchase_orders
       (sl_no,sl_no_text,financial_year,date,sap_po_no,name_supplier,description,qty,rate,po_cost,gst_percent,total,file_no,sign,entered_by)
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
-      .run(parseInt(after_sl_no), suffix, fy, date, sap_po_no, name_supplier, description,
+      .run(parseInt(after_sl_no)||0, suffix, fy, date, sap_po_no, name_supplier, description,
            parseFloat(qty)||0, parseFloat(rate)||0, po_cost,
            gst_percent||'0', parseFloat(total)||0, file_no, sign||'', user.username);
     return suffix;

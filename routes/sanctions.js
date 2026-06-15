@@ -143,7 +143,7 @@ router.get('/', checkAccess, (req, res) => {
           <span class="modal-footer-note"><i class="ti ti-info-circle"></i> Sanction No. assigned at the moment you save</span>
           <div class="modal-footer-actions">
             <button class="btn btn-outline" id="cancelAdd">Cancel</button>
-            <button class="btn btn-primary" onclick="document.getElementById('addForm').submit()">
+            <button type="submit" form="addForm" class="btn btn-primary">
               <i class="ti ti-device-floppy"></i> Save entry
             </button>
           </div>
@@ -196,7 +196,7 @@ router.get('/', checkAccess, (req, res) => {
           <span class="modal-footer-note"><i class="ti ti-info-circle"></i> Suffix SL.NO assigned automatically e.g. 4A</span>
           <div class="modal-footer-actions">
             <button class="btn btn-outline" id="cancelForgotten">Cancel</button>
-            <button class="btn btn-primary" onclick="document.getElementById('forgottenForm').submit()">
+            <button type="submit" form="forgottenForm" class="btn btn-primary">
               <i class="ti ti-device-floppy"></i> Save forgotten entry
             </button>
           </div>
@@ -242,7 +242,7 @@ router.get('/', checkAccess, (req, res) => {
           <span></span>
           <div class="modal-footer-actions">
             <button class="btn btn-outline" id="cancelEdit">Cancel</button>
-            <button class="btn btn-primary" onclick="document.getElementById('editForm').submit()">
+            <button type="submit" form="editForm" class="btn btn-primary">
               <i class="ti ti-device-floppy"></i> Save changes
             </button>
           </div>

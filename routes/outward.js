@@ -183,7 +183,7 @@ router.get('/', checkAccess, (req, res) => {
           <span class="modal-footer-note"><i class="ti ti-info-circle"></i> D.NO assigned at the moment you save</span>
           <div class="modal-footer-actions">
             <button class="btn btn-outline" id="cancelAdd">Cancel</button>
-            <button class="btn btn-primary" onclick="document.getElementById('addForm').submit()">
+            <button class="btn btn-primary" type="submit" form="addForm">
               <i class="ti ti-device-floppy"></i> Save entry
             </button>
           </div>
@@ -240,7 +240,7 @@ router.get('/', checkAccess, (req, res) => {
           <span class="modal-footer-note"><i class="ti ti-info-circle"></i> Suffix D.NO assigned automatically e.g. 4/A</span>
           <div class="modal-footer-actions">
             <button class="btn btn-outline" id="cancelForgotten">Cancel</button>
-            <button class="btn btn-primary" onclick="document.getElementById('forgottenForm').submit()">
+            <button class="btn btn-primary" type="submit" form="forgottenForm">
               <i class="ti ti-device-floppy"></i> Save forgotten entry
             </button>
           </div>
@@ -286,7 +286,7 @@ router.get('/', checkAccess, (req, res) => {
           <span></span>
           <div class="modal-footer-actions">
             <button class="btn btn-outline" id="cancelEdit">Cancel</button>
-            <button class="btn btn-primary" onclick="document.getElementById('editForm').submit()">
+            <button class="btn btn-primary" type="submit" form="editForm">
               <i class="ti ti-device-floppy"></i> Save changes
             </button>
           </div>
@@ -417,6 +417,7 @@ router.post('/forgotten', (req, res) => {
   const db   = getDb();
   const user = req.session.user;
   const { after_d_no, date, to_whom_addressed, description, file_no, remarks } = req.body;
+  if (!after_d_no || isNaN(parseInt(after_d_no)) || !date || !to_whom_addressed || !description) return res.redirect('/outward');
   const fy   = getFY(date);
   const d_text = db.transaction(() => {
     const suffix = getNextSuffixOutward(db, after_d_no, fy);
