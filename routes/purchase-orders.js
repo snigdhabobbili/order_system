@@ -1,3 +1,4 @@
+
 const express = require('express');
 const router  = express.Router();
 const getDb   = require('../db');
@@ -9,7 +10,7 @@ const ALLOWED = ['admin','user2'];
 
 const FILE_NO_PREFIXES = ['19', '33', '74', '75'];
 
-function getNextSuffixPO(db, baseNum, fy) { //Function that figures out the next suffix for a forgotten entry
+function getNextSuffixPO(db, baseNum, fy) {
   const rows = db.prepare(
     `SELECT sl_no_text FROM purchase_orders WHERE financial_year=? AND sl_no_text LIKE ?`
   ).all(fy, baseNum + '%');
@@ -81,6 +82,7 @@ router.get('/', checkAccess, (req, res) => {
 
   const body = `
     ${req.query.saved ? successOverlay('SL.NO', req.query.saved) : ''}
+    ${req.query.error ? `<div class="alert alert-danger" style="margin:16px 0"><i class="ti ti-alert-circle"></i> ${req.query.error}</div>` : ''}
     ${confirmOverlay('/purchase-orders')}
 
     <div class="page-header">
@@ -92,7 +94,16 @@ router.get('/', checkAccess, (req, res) => {
         <select id="fySelect" class="filter-select">${fyOptions}</select>
         ${(!isArchive || user.role === 'admin') ? `
           <button class="btn btn-primary" id="addEntryBtn"><i class="ti ti-plus"></i> Add entry</button>
-          ${user.role === 'admin' ? `<button class="btn btn-outline" id="forgottenEntryBtn"><i class="ti ti-history"></i> Forgotten entry</button>` : ''}
+          ${user.role === 'admin' ? `
+            <button
+    class="btn btn-outline"
+    id="insertEntryBtn"
+    style="height:50px;"
+>
+    <i class="ti ti-list-numbers"></i> Insert
+</button>
+            <button class="btn btn-outline" id="forgottenEntryBtn"><i class="ti ti-history"></i> Forgotten entry</button>
+          ` : ''}
         ` : ''}
       </div>
     </div>
@@ -220,6 +231,92 @@ router.get('/', checkAccess, (req, res) => {
       </div>
     </div>
 
+    <!-- Insert Modal (Admin only) -->
+    ${user.role === 'admin' ? `
+    <div class="modal-overlay" id="insertModal">
+      <div class="modal">
+        <div class="modal-header">
+          <span class="modal-title">Insert entry — Purchase orders</span>
+          <button class="modal-close" id="closeInsertModal">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-danger" style="margin-bottom:16px"><i class="ti ti-alert-circle"></i> Insert a record at any exact SL.NO. Existing records are never renumbered.</div>
+          <form method="POST" action="/purchase-orders/insert" id="insertForm">
+            <div class="form-grid">
+              <div class="form-group">
+                <label>SL.NO <span class="req">*</span></label>
+                <input type="number" name="sl_no_insert" required min="1" step="1" autocomplete="off" placeholder="e.g. 5"/>
+                <span class="field-hint">Must not already exist in this FY.</span>
+              </div>
+              <div class="form-group">
+                <label>Date <span class="req">*</span></label>
+                <input type="date" name="date" required autocomplete="off"/>
+              </div>
+              <div class="form-group">
+                <label>SAP PO Number <span class="req">*</span></label>
+                <input type="text" name="sap_po_no" required autocomplete="off"/>
+              </div>
+              <div class="form-group full">
+                <label>Name &amp; Supplier <span class="req">*</span></label>
+                <input type="text" name="name_supplier" required autocomplete="off"/>
+              </div>
+              <div class="form-group full">
+                <label>Description / Particulars <span class="req">*</span></label>
+                <textarea name="description" required autocomplete="off"></textarea>
+              </div>
+              <div class="form-group">
+                <label>Quantity <span class="req">*</span></label>
+                <input type="number" name="qty" id="ins_qty" required min="0.01" step="any" autocomplete="off"/>
+              </div>
+              <div class="form-group">
+                <label>Rate (₹) <span class="req">*</span></label>
+                <input type="number" name="rate" id="ins_rate" required min="0" step="any" autocomplete="off"/>
+              </div>
+              <div class="form-group">
+                <label>PO Cost (₹)</label>
+                <div class="calc-display" id="ins_po_cost_display">₹ —</div>
+                <span class="field-hint">Auto: Qty × Rate</span>
+                <input type="hidden" name="po_cost" id="ins_po_cost_hidden" value="0"/>
+              </div>
+              <div class="form-group">
+                <label>GST (%) <span class="req">*</span></label>
+                <input type="text" name="gst_percent" id="ins_gst_percent" required autocomplete="off"/>
+              </div>
+              <div class="form-group full">
+                <label>Total (₹)</label>
+                <div class="calc-display" id="ins_total_display" style="font-size:15px;font-weight:700">₹ —</div>
+                <span class="field-hint">Auto: PO Cost + GST amount</span>
+                <input type="hidden" name="total" id="ins_total_hidden" value="0"/>
+              </div>
+              <div class="form-group">
+                <label>F.NO <span class="req">*</span></label>
+                <select name="file_no_prefix" class="filter-select" style="width:100%" required>
+                  <option value="">— Select F.NO —</option>
+                  <option value="19">19 - DE/IT</option>
+                  <option value="33">33 - DE/Telecom </option>
+                  <option value="74">74 - DE/Basis</option>
+                  <option value="75">75 - DE/IT 2</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label>Sign</label>
+                <input type="text" name="sign" autocomplete="off"/>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <span class="modal-footer-note"><i class="ti ti-info-circle"></i> Record will appear in correct sorted position</span>
+          <div class="modal-footer-actions">
+            <button class="btn btn-outline" id="cancelInsert">Cancel</button>
+            <button type="submit" form="insertForm" class="btn btn-primary">
+              <i class="ti ti-device-floppy"></i> Save entry
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>` : ''}
+
     <!-- Forgotten Entry Modal -->
     ${user.role === 'admin' ? `
     <div class="modal-overlay" id="forgottenModal">
@@ -319,6 +416,12 @@ router.get('/', checkAccess, (req, res) => {
             <input type="hidden" name="id" id="edit_id"/>
             <div class="form-grid">
               <div class="form-section-label">Order details</div>
+              ${user.role === 'admin' ? `
+              <div class="form-group">
+                <label>SL.NO <span class="req">*</span></label>
+                <input type="text" name="sl_no_text" id="edit_sl_no_text" required autocomplete="off"/>
+                <span class="field-hint">Admin only. Must be unique within this FY.</span>
+              </div>` : ''}
               <div class="form-group">
                 <label>Date <span class="req">*</span></label>
                 <input type="date" name="date" id="edit_date" required autocomplete="off"/>
@@ -393,6 +496,12 @@ router.get('/', checkAccess, (req, res) => {
     document.getElementById('cancelForgotten').addEventListener('click', () => document.getElementById('forgottenModal').classList.remove('active'));
     document.getElementById('closeForgottenModal').addEventListener('click', () => document.getElementById('forgottenModal').classList.remove('active'));
   }
+  const insertBtn = document.getElementById('insertEntryBtn');
+  if (insertBtn) {
+    insertBtn.addEventListener('click', () => document.getElementById('insertModal').classList.add('active'));
+    document.getElementById('cancelInsert').addEventListener('click', () => document.getElementById('insertModal').classList.remove('active'));
+    document.getElementById('closeInsertModal').addEventListener('click', () => document.getElementById('insertModal').classList.remove('active'));
+  }
 
   function formatInr(n) {
     return '\u20b9' + n.toLocaleString('en-IN', { minimumFractionDigits:2, maximumFractionDigits:2 });
@@ -415,6 +524,25 @@ router.get('/', checkAccess, (req, res) => {
   ['f_qty','f_rate','f_gst_percent'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', calcForgotten);
+  });
+  function calcInsert() {
+    const q = parseFloat(document.getElementById('ins_qty')?.value) || 0;
+    const r = parseFloat(document.getElementById('ins_rate')?.value) || 0;
+    const g = parseFloat(document.getElementById('ins_gst_percent')?.value) || 0;
+    const po  = q * r;
+    const tot = po + (po * g / 100);
+    const poDisp = document.getElementById('ins_po_cost_display');
+    const totDisp = document.getElementById('ins_total_display');
+    const poHid = document.getElementById('ins_po_cost_hidden');
+    const totHid = document.getElementById('ins_total_hidden');
+    if (poDisp)  poDisp.textContent  = formatInr(po);
+    if (totDisp) totDisp.textContent = formatInr(tot);
+    if (poHid)   poHid.value  = po.toFixed(2);
+    if (totHid)  totHid.value = tot.toFixed(2);
+  }
+  ['ins_qty','ins_rate','ins_gst_percent'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', calcInsert);
   });
   </script>`;
   res.send(layout(user, 'Purchase Orders', body + poScript));
@@ -442,16 +570,48 @@ router.post('/', checkAccess, (req, res) => {
   res.redirect(`/purchase-orders?saved=${sl_no}`);
 });
 
+router.post('/insert', (req, res) => {
+  if (req.session.user.role !== 'admin') return res.status(403).send('Admin only.');
+  const db   = getDb();
+  const user = req.session.user;
+  const { sl_no_insert, date, sap_po_no, name_supplier, description, qty, rate, po_cost, gst_percent, total, file_no_prefix, sign } = req.body;
+  if (!sl_no_insert || isNaN(parseInt(sl_no_insert))) return res.redirect('/purchase-orders');
+  if (!date || !sap_po_no || !name_supplier || !description || !file_no_prefix || !gst_percent) return res.redirect('/purchase-orders');
+  const fy = getFY(date);
+  const n  = parseInt(sl_no_insert);
+  // Duplicate check
+  const existing = db.prepare('SELECT id FROM purchase_orders WHERE financial_year=? AND sl_no_text=?').get(fy, String(n));
+  if (existing) return res.redirect('/purchase-orders?error=Record+with+this+number+already+exists.');
+  const file_no = assignFileNo(db, file_no_prefix, fy);
+  db.prepare(`INSERT INTO purchase_orders
+    (sl_no,sl_no_text,financial_year,date,sap_po_no,name_supplier,description,qty,rate,po_cost,gst_percent,total,file_no,sign,entered_by)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+    .run(n, String(n), fy, date, sap_po_no, name_supplier, description,
+         parseFloat(qty)||0, parseFloat(rate)||0, parseFloat(po_cost)||0,
+         gst_percent||'0', parseFloat(total)||0, file_no, sign||'', user.username);
+  res.redirect('/purchase-orders?saved=' + n);
+});
+
 router.post('/edit', checkAccess, (req, res) => {
   const db   = getDb();
   const user = req.session.user;
-  const { id, date, sap_po_no, name_supplier, description, qty, rate, po_cost, gst_percent, total, file_no, sign } = req.body;
+  const { id, sl_no_text, date, sap_po_no, name_supplier, description, qty, rate, po_cost, gst_percent, total, file_no, sign } = req.body;
   const existing = db.prepare('SELECT * FROM purchase_orders WHERE id=?').get(id);
   if (!existing) return res.redirect('/purchase-orders');
   if (user.role !== 'admin' && user.role !== 'user1' && !isEditable(existing.created_at)) return res.status(403).send('Entry is locked.');
-  db.prepare(`UPDATE purchase_orders SET date=?,sap_po_no=?,name_supplier=?,description=?,qty=?,rate=?,po_cost=?,gst_percent=?,total=?,file_no=?,sign=? WHERE id=?`)
-    .run(date, sap_po_no, name_supplier, description, parseFloat(qty), parseFloat(rate),
-         parseFloat(po_cost), gst_percent, parseFloat(total), file_no||'', sign||'', id);
+  // Admin: validate sl_no_text uniqueness if changed
+  if (user.role === 'admin' && sl_no_text && sl_no_text !== (existing.sl_no_text || String(existing.sl_no))) {
+    const dup = db.prepare('SELECT id FROM purchase_orders WHERE financial_year=? AND sl_no_text=? AND id!=?').get(existing.financial_year, sl_no_text, id);
+    if (dup) return res.redirect('/purchase-orders?error=Record+with+this+number+already+exists.');
+    const newNum = parseInt(sl_no_text);
+    db.prepare(`UPDATE purchase_orders SET sl_no_text=?,sl_no=?,date=?,sap_po_no=?,name_supplier=?,description=?,qty=?,rate=?,po_cost=?,gst_percent=?,total=?,file_no=?,sign=? WHERE id=?`)
+      .run(sl_no_text, isNaN(newNum) ? existing.sl_no : newNum, date, sap_po_no, name_supplier, description,
+           parseFloat(qty), parseFloat(rate), parseFloat(po_cost), gst_percent, parseFloat(total), file_no||'', sign||'', id);
+  } else {
+    db.prepare(`UPDATE purchase_orders SET date=?,sap_po_no=?,name_supplier=?,description=?,qty=?,rate=?,po_cost=?,gst_percent=?,total=?,file_no=?,sign=? WHERE id=?`)
+      .run(date, sap_po_no, name_supplier, description, parseFloat(qty), parseFloat(rate),
+           parseFloat(po_cost), gst_percent, parseFloat(total), file_no||'', sign||'', id);
+  }
   if (user.role !== 'admin') {
     writeNotification(db, 'Purchase Orders', id, 'edit', user.username,
       'Edited SL.NO ' + (existing.sl_no_text||existing.sl_no) + ' — ' + existing.name_supplier);

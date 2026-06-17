@@ -50,7 +50,7 @@ router.get('/', checkAccess, (req, res) => {
   const tableRows = rows.map(row => {
     const displayNo = row.c_no_text || String(row.c_no);
     return `
-    <tr data-search="${[displayNo,row.received_from,row.subject,row.file_no,row.remarks,row.entered_by].join(' ').toLowerCase()}" data-from="${(row.received_from||'').toLowerCase()}">
+    <tr data-search="${[displayNo,row.received_from,row.subject,row.file_no,row.remarks,row.entered_by].join(' ').toLowerCase().replace(/"/g,'&quot;')}" data-from="${(row.received_from||'').toLowerCase().replace(/"/g,'&quot;')}">
       <td>${displayNo}</td>
       <td>${fmtDate(row.date)}</td>
       <td>${row.received_from}</td>
@@ -86,6 +86,7 @@ router.get('/', checkAccess, (req, res) => {
 
   const body = `
     ${req.query.saved ? successOverlay('C.NO', req.query.saved) : ''}
+    ${req.query.error ? `<div class="alert alert-danger" style="margin:16px 0"><i class="ti ti-alert-circle"></i> ${req.query.error}</div>` : ''}
     ${confirmOverlay('/inward')}
 
     <div class="page-header">
@@ -97,7 +98,16 @@ router.get('/', checkAccess, (req, res) => {
         <select id="fySelect" class="filter-select">${fyOptions}</select>
         ${(!isArchive || user.role === 'admin') ? `
           <button class="btn btn-primary" id="addEntryBtn"><i class="ti ti-plus"></i> Add entry</button>
-          ${user.role === 'admin' ? `<button class="btn btn-outline" id="forgottenEntryBtn"><i class="ti ti-history"></i> Forgotten entry</button>` : ''}
+          ${user.role === 'admin' ? `
+            <button
+    class="btn btn-outline"
+    id="insertEntryBtn"
+    style="height:50px;"
+>
+    <i class="ti ti-list-numbers"></i> Insert
+</button>
+            <button class="btn btn-outline" id="forgottenEntryBtn"><i class="ti ti-history"></i> Forgotten entry</button>
+          ` : ''}
         ` : ''}
       </div>
     </div>
@@ -197,6 +207,61 @@ router.get('/', checkAccess, (req, res) => {
       </div>
     </div>
 
+    <!-- Insert Modal (Admin only) -->
+    ${user.role === 'admin' ? `
+    <div class="modal-overlay" id="insertModal">
+      <div class="modal">
+        <div class="modal-header">
+          <span class="modal-title">Insert entry — Inward orders</span>
+          <button class="modal-close" id="closeInsertModal">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-danger" style="margin-bottom:16px"><i class="ti ti-alert-circle"></i> Insert a record at any exact C.NO. Existing records are never renumbered.</div>
+          <form method="POST" action="/inward/insert" id="insertForm">
+            <div class="form-grid">
+              <div class="form-group">
+                <label>C.NO <span class="req">*</span></label>
+                <input type="number" name="c_no_insert" required min="1" step="1" autocomplete="off" placeholder="e.g. 5"/>
+                <span class="field-hint">Must not already exist in this FY.</span>
+              </div>
+              <div class="form-group">
+                <label>Date <span class="req">*</span></label>
+                <input type="date" name="date" required autocomplete="off"/>
+              </div>
+              <div class="form-group">
+                <label>Received From <span class="req">*</span></label>
+                <input type="text" name="received_from" required autocomplete="off" list="insert-from-list"/>
+                <datalist id="insert-from-list">
+                  ${fromDatalist}
+                </datalist>
+              </div>
+              <div class="form-group full">
+                <label>Subject <span class="req">*</span></label>
+                <input type="text" name="subject" required autocomplete="off"/>
+              </div>
+              <div class="form-group">
+                <label>File No. <span class="req">*</span></label>
+                <input type="text" name="file_no" required autocomplete="off"/>
+              </div>
+              <div class="form-group">
+                <label>Remarks</label>
+                <input type="text" name="remarks" autocomplete="off"/>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <span class="modal-footer-note"><i class="ti ti-info-circle"></i> Record will appear in correct sorted position</span>
+          <div class="modal-footer-actions">
+            <button class="btn btn-outline" id="cancelInsert">Cancel</button>
+            <button class="btn btn-primary" type="submit" form="insertForm">
+              <i class="ti ti-device-floppy"></i> Save entry
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>` : ''}
+
     <!-- Forgotten Entry Modal -->
     ${user.role === 'admin' ? `
     <div class="modal-overlay" id="forgottenModal">
@@ -263,6 +328,12 @@ router.get('/', checkAccess, (req, res) => {
           <form method="POST" action="/inward/edit" id="editForm">
             <input type="hidden" name="id" id="edit_id"/>
             <div class="form-grid">
+              ${user.role === 'admin' ? `
+              <div class="form-group">
+                <label>C.NO <span class="req">*</span></label>
+                <input type="text" name="c_no_text" id="edit_c_no_text" required autocomplete="off"/>
+                <span class="field-hint">Admin only. Must be unique within this FY.</span>
+              </div>` : ''}
               <div class="form-group">
                 <label>Date <span class="req">*</span></label>
                 <input type="date" name="date" id="edit_date" required autocomplete="off"/>
@@ -308,6 +379,12 @@ router.get('/', checkAccess, (req, res) => {
       forgottenBtn.addEventListener('click', () => document.getElementById('forgottenModal').classList.add('active'));
       document.getElementById('cancelForgotten').addEventListener('click', () => document.getElementById('forgottenModal').classList.remove('active'));
       document.getElementById('closeForgottenModal').addEventListener('click', () => document.getElementById('forgottenModal').classList.remove('active'));
+    }
+    const insertBtn = document.getElementById('insertEntryBtn');
+    if (insertBtn) {
+      insertBtn.addEventListener('click', () => document.getElementById('insertModal').classList.add('active'));
+      document.getElementById('cancelInsert').addEventListener('click', () => document.getElementById('insertModal').classList.remove('active'));
+      document.getElementById('closeInsertModal').addEventListener('click', () => document.getElementById('insertModal').classList.remove('active'));
     }
 
     document.getElementById('fromDropdownBtn').addEventListener('click', function(e) {
@@ -380,6 +457,22 @@ router.post('/', checkAccess, (req, res) => {
   res.redirect('/inward?saved=' + c_no);
 });
 
+router.post('/insert', (req, res) => {
+  if (req.session.user.role !== 'admin') return res.status(403).send('Admin only.');
+  const db   = getDb();
+  const user = req.session.user;
+  const { c_no_insert, date, received_from, subject, file_no, remarks } = req.body;
+  if (!c_no_insert || isNaN(parseInt(c_no_insert))) return res.redirect('/inward');
+  if (!date || !received_from || !subject) return res.redirect('/inward');
+  const fy = getFY(date);
+  const n  = parseInt(c_no_insert);
+  const existing = db.prepare('SELECT id FROM inward_orders WHERE financial_year=? AND c_no_text=?').get(fy, String(n));
+  if (existing) return res.redirect('/inward?error=Record+with+this+number+already+exists.');
+  db.prepare('INSERT INTO inward_orders (c_no,c_no_text,financial_year,date,received_from,subject,file_no,remarks,entered_by) VALUES (?,?,?,?,?,?,?,?,?)')
+    .run(n, String(n), fy, date, received_from, subject, file_no||'', remarks||'', user.username);
+  res.redirect('/inward?saved=' + n);
+});
+
 router.post('/forgotten', (req, res) => {
   if (req.session.user.role !== 'admin') return res.status(403).send('Admin only.');
   const db   = getDb();
@@ -399,12 +492,20 @@ router.post('/forgotten', (req, res) => {
 router.post('/edit', checkAccess, (req, res) => {
   const db   = getDb();
   const user = req.session.user;
-  const { id, date, received_from, subject, file_no, remarks } = req.body;
+  const { id, c_no_text, date, received_from, subject, file_no, remarks } = req.body;
   const existing = db.prepare('SELECT * FROM inward_orders WHERE id=?').get(id);
   if (!existing) return res.redirect('/inward');
   if (user.role !== 'admin' && user.role !== 'user1' && !canUserEdit(existing, user)) return res.status(403).send('You cannot edit this entry.');
-  db.prepare('UPDATE inward_orders SET date=?,received_from=?,subject=?,file_no=?,remarks=? WHERE id=?')
-    .run(date, received_from, subject, file_no||'', remarks||'', id);
+  if (user.role === 'admin' && c_no_text && c_no_text !== (existing.c_no_text || String(existing.c_no))) {
+    const dup = db.prepare('SELECT id FROM inward_orders WHERE financial_year=? AND c_no_text=? AND id!=?').get(existing.financial_year, c_no_text, id);
+    if (dup) return res.redirect('/inward?error=Record+with+this+number+already+exists.');
+    const newNum = parseInt(c_no_text);
+    db.prepare('UPDATE inward_orders SET c_no=?,c_no_text=?,date=?,received_from=?,subject=?,file_no=?,remarks=? WHERE id=?')
+      .run(isNaN(newNum) ? existing.c_no : newNum, c_no_text, date, received_from, subject, file_no||'', remarks||'', id);
+  } else {
+    db.prepare('UPDATE inward_orders SET date=?,received_from=?,subject=?,file_no=?,remarks=? WHERE id=?')
+      .run(date, received_from, subject, file_no||'', remarks||'', id);
+  }
   if (user.role !== 'admin') {
     writeNotification(db, 'Inward Orders', id, 'edit', user.username,
       'Edited C.NO ' + (existing.c_no_text||existing.c_no) + ' — ' + existing.received_from);

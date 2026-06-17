@@ -8,9 +8,9 @@ const { actionButtons, statusBadge, confirmOverlay, successOverlay, fmtDate, wri
 // Search filter values — add more here when available
 const TO_WHOM_VALUES = [
   'CMD', 'Director (Grid and Transmission Management',
-  'Director (Projects)','Director (Finance)','Director (Lift Irrigation & Schemes)','Director (Grid Operations)','ED/Comml/TGPCC	',
-  'CGM/HRD	','CE/IT	','CE/Transmission	','CE/Construction-I	','CE/Construction-II	',
-  'CE/ P& MM	','CE/400KV	','CE/Telecom' , 'CE/Comml & RAC', 'CE/ Civil', 'CE/SLDC ( FAC)', 'CE/LIS- Incharge', 'CE/PR/LIS', 'CE/Power System', 'Joint Secretary', 'FA&CCA(R&A & CFO)(I/C)', 'FA&CCA /TGPCC (I/C)', 'CE/Digitalization', 'CE/Training/CTI', 'CE/Metro', 'CE/Rural','CE/ Warangal', 'CE/400kV Wgl', 'CE/Karimnagar',
+  'Director (Projects)','Director (Finance)','Director (Lift Irrigation & Schemes)','Director (Grid Operations)','ED/Comml/TGPCC\t',
+  'CGM/HRD\t','CE/IT\t','CE/Transmission\t','CE/Construction-I\t','CE/Construction-II\t',
+  'CE/ P& MM\t','CE/400KV\t','CE/Telecom' , 'CE/Comml & RAC', 'CE/ Civil', 'CE/SLDC ( FAC)', 'CE/LIS- Incharge', 'CE/PR/LIS', 'CE/Power System', 'Joint Secretary', 'FA&CCA(R&A & CFO)(I/C)', 'FA&CCA /TGPCC (I/C)', 'CE/Digitalization', 'CE/Training/CTI', 'CE/Metro', 'CE/Rural','CE/ Warangal', 'CE/400kV Wgl', 'CE/Karimnagar',
 ];
 
 const ALLOWED = ['admin','user1'];
@@ -78,6 +78,7 @@ router.get('/', checkAccess, (req, res) => {
 
   const body = `
     ${req.query.saved ? successOverlay('D.NO', req.query.saved) : ''}
+    ${req.query.error ? `<div class="alert alert-danger" style="margin:16px 0"><i class="ti ti-alert-circle"></i> ${req.query.error}</div>` : ''}
     ${confirmOverlay('/outward')}
 
     <div class="page-header">
@@ -89,7 +90,16 @@ router.get('/', checkAccess, (req, res) => {
         <select id="fySelect" class="filter-select">${fyOptions}</select>
         ${!isArchive ? `
           <button class="btn btn-primary" id="addEntryBtn"><i class="ti ti-plus"></i> Add entry</button>
-          ${user.role === 'admin' ? `<button class="btn btn-outline" id="forgottenEntryBtn"><i class="ti ti-history"></i> Forgotten entry</button>` : ''}
+          ${user.role === 'admin' ? `
+            <button
+    class="btn btn-outline"
+    id="insertEntryBtn"
+    style="height:50px;"
+>
+    <i class="ti ti-list-numbers"></i> Insert
+</button>
+            <button class="btn btn-outline" id="forgottenEntryBtn"><i class="ti ti-history"></i> Forgotten entry</button>
+          ` : ''}
         ` : ''}
       </div>
     </div>
@@ -191,10 +201,57 @@ router.get('/', checkAccess, (req, res) => {
       </div>
     </div>
 
-    <!-- Forgotten Entry Modal -->
-
-    <!-- Forgotten Entry Modal -->
-
+    <!-- Insert Modal (Admin only) -->
+    ${user.role === 'admin' ? `
+    <div class="modal-overlay" id="insertModal">
+      <div class="modal">
+        <div class="modal-header">
+          <span class="modal-title">Insert entry — Outward orders</span>
+          <button class="modal-close" id="closeInsertModal">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-danger" style="margin-bottom:16px"><i class="ti ti-alert-circle"></i> Insert a record at any exact D.NO. Existing records are never renumbered.</div>
+          <form method="POST" action="/outward/insert" id="insertForm">
+            <div class="form-grid">
+              <div class="form-group">
+                <label>D.NO <span class="req">*</span></label>
+                <input type="number" name="d_no_insert" required min="1" step="1" autocomplete="off" placeholder="e.g. 5"/>
+                <span class="field-hint">Must not already exist in this FY.</span>
+              </div>
+              <div class="form-group">
+                <label>Date <span class="req">*</span></label>
+                <input type="date" name="date" required autocomplete="off"/>
+              </div>
+              <div class="form-group">
+                <label>To Whom Addressed <span class="req">*</span></label>
+                <input type="text" name="to_whom_addressed" required autocomplete="off"/>
+              </div>
+              <div class="form-group full">
+                <label>Description / Subject <span class="req">*</span></label>
+                <input type="text" name="description" required autocomplete="off"/>
+              </div>
+              <div class="form-group">
+                <label>File No.</label>
+                <input type="text" name="file_no" autocomplete="off"/>
+              </div>
+              <div class="form-group">
+                <label>Remarks</label>
+                <input type="text" name="remarks" autocomplete="off"/>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <span class="modal-footer-note"><i class="ti ti-info-circle"></i> Record will appear in correct sorted position</span>
+          <div class="modal-footer-actions">
+            <button class="btn btn-outline" id="cancelInsert">Cancel</button>
+            <button class="btn btn-primary" type="submit" form="insertForm">
+              <i class="ti ti-device-floppy"></i> Save entry
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>` : ''}
 
     <!-- Forgotten Entry Modal -->
     ${user.role === 'admin' ? `
@@ -259,6 +316,12 @@ router.get('/', checkAccess, (req, res) => {
           <form method="POST" action="/outward/edit" id="editForm">
             <input type="hidden" name="id" id="edit_id"/>
             <div class="form-grid">
+              ${user.role === 'admin' ? `
+              <div class="form-group">
+                <label>D.NO <span class="req">*</span></label>
+                <input type="text" name="d_no_text" id="edit_d_no_text" required autocomplete="off"/>
+                <span class="field-hint">Admin only. Must be unique within this FY.</span>
+              </div>` : ''}
               <div class="form-group">
                 <label>Date <span class="req">*</span></label>
                 <input type="date" name="date" id="edit_date" required autocomplete="off"/>
@@ -325,7 +388,7 @@ router.get('/', checkAccess, (req, res) => {
           const original = td.dataset.original || td.innerText;
           td.dataset.original = original;
           if (show && q) {
-            const escaped = q.replace(/[.+?^$()|[\]\\*{}]/g, '\\x24&'.replace('x24','')); const regex = new RegExp('(' + escaped + ')', 'gi');
+            const escaped = q.replace(/[.+?^$()|[\\]\\\\*{}]/g, '\\x24&'.replace('x24','')); const regex = new RegExp('(' + escaped + ')', 'gi');
             td.innerHTML = original.replace(regex, '<mark style="background:#fef08a;border-radius:2px;padding:0 1px">$1</mark>');
           } else {
             td.innerText = original;
@@ -377,6 +440,12 @@ router.get('/', checkAccess, (req, res) => {
     document.getElementById('cancelForgotten').addEventListener('click', () => document.getElementById('forgottenModal').classList.remove('active'));
     document.getElementById('closeForgottenModal').addEventListener('click', () => document.getElementById('forgottenModal').classList.remove('active'));
   }
+  const insertBtn = document.getElementById('insertEntryBtn');
+  if (insertBtn) {
+    insertBtn.addEventListener('click', () => document.getElementById('insertModal').classList.add('active'));
+    document.getElementById('cancelInsert').addEventListener('click', () => document.getElementById('insertModal').classList.remove('active'));
+    document.getElementById('closeInsertModal').addEventListener('click', () => document.getElementById('insertModal').classList.remove('active'));
+  }
   </script>`;
   res.send(layout(user, 'Outward Orders', body + searchScript + owScript));
 });
@@ -396,15 +465,39 @@ router.post('/', checkAccess, (req, res) => {
   res.redirect('/outward?saved=' + d_no);
 });
 
+router.post('/insert', (req, res) => {
+  if (req.session.user.role !== 'admin') return res.status(403).send('Admin only.');
+  const db   = getDb();
+  const user = req.session.user;
+  const { d_no_insert, date, to_whom_addressed, description, file_no, remarks } = req.body;
+  if (!d_no_insert || isNaN(parseInt(d_no_insert))) return res.redirect('/outward');
+  if (!date || !to_whom_addressed || !description) return res.redirect('/outward');
+  const fy = getFY(date);
+  const n  = parseInt(d_no_insert);
+  const existing = db.prepare('SELECT id FROM outward_orders WHERE financial_year=? AND d_no_text=?').get(fy, String(n));
+  if (existing) return res.redirect('/outward?error=Record+with+this+number+already+exists.');
+  db.prepare('INSERT INTO outward_orders (d_no,d_no_text,financial_year,date,to_whom_addressed,description,file_no,remarks,entered_by) VALUES (?,?,?,?,?,?,?,?,?)')
+    .run(n, String(n), fy, date, to_whom_addressed, description, file_no||'', remarks||'', user.username);
+  res.redirect('/outward?saved=' + n);
+});
+
 router.post('/edit', checkAccess, (req, res) => {
   const db   = getDb();
   const user = req.session.user;
-  const { id, date, to_whom_addressed, description, file_no, remarks } = req.body;
+  const { id, d_no_text, date, to_whom_addressed, description, file_no, remarks } = req.body;
   const existing = db.prepare('SELECT * FROM outward_orders WHERE id=?').get(id);
   if (!existing) return res.redirect('/outward');
   if (user.role !== 'admin' && user.role !== 'user1' && !isEditable(existing.created_at)) return res.status(403).send('Entry is locked.');
-  db.prepare('UPDATE outward_orders SET date=?,to_whom_addressed=?,description=?,file_no=?,remarks=? WHERE id=?')
-    .run(date, to_whom_addressed, description, file_no||'', remarks||'', id);
+  if (user.role === 'admin' && d_no_text && d_no_text !== (existing.d_no_text || String(existing.d_no))) {
+    const dup = db.prepare('SELECT id FROM outward_orders WHERE financial_year=? AND d_no_text=? AND id!=?').get(existing.financial_year, d_no_text, id);
+    if (dup) return res.redirect('/outward?error=Record+with+this+number+already+exists.');
+    const newNum = parseInt(d_no_text);
+    db.prepare('UPDATE outward_orders SET d_no=?,d_no_text=?,date=?,to_whom_addressed=?,description=?,file_no=?,remarks=? WHERE id=?')
+      .run(isNaN(newNum) ? existing.d_no : newNum, d_no_text, date, to_whom_addressed, description, file_no||'', remarks||'', id);
+  } else {
+    db.prepare('UPDATE outward_orders SET date=?,to_whom_addressed=?,description=?,file_no=?,remarks=? WHERE id=?')
+      .run(date, to_whom_addressed, description, file_no||'', remarks||'', id);
+  }
   if (user.role !== 'admin') {
     writeNotification(db, 'Outward Orders', id, 'edit', user.username,
       'Edited D.NO ' + (existing.d_no_text||existing.d_no) + ' — ' + existing.to_whom_addressed);

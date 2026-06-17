@@ -58,6 +58,7 @@ router.get('/', checkAccess, (req, res) => {
 
   const body = `
     ${req.query.saved ? successOverlay('Sanction No.', req.query.saved) : ''}
+    ${req.query.error ? `<div class="alert alert-danger" style="margin:16px 0"><i class="ti ti-alert-circle"></i> ${req.query.error}</div>` : ''}
     ${confirmOverlay('/sanctions')}
 
     <div class="page-header">
@@ -69,7 +70,16 @@ router.get('/', checkAccess, (req, res) => {
         <select id="fySelect" class="filter-select">${fyOptions}</select>
         ${!isArchive ? `
           <button class="btn btn-primary" id="addEntryBtn"><i class="ti ti-plus"></i> Add entry</button>
-          ${user.role === 'admin' ? `<button class="btn btn-outline" id="forgottenEntryBtn"><i class="ti ti-history"></i> Forgotten entry</button>` : ''}
+          ${user.role === 'admin' ? `
+            <button
+    class="btn btn-outline"
+    id="insertEntryBtn"
+    style="height:50px;"
+>
+    <i class="ti ti-list-numbers"></i> Insert
+</button>
+            <button class="btn btn-outline" id="forgottenEntryBtn"><i class="ti ti-history"></i> Forgotten entry</button>
+          ` : ''}
         ` : ''}
       </div>
     </div>
@@ -151,6 +161,57 @@ router.get('/', checkAccess, (req, res) => {
       </div>
     </div>
 
+    <!-- Insert Modal (Admin only) -->
+    ${user.role === 'admin' ? `
+    <div class="modal-overlay" id="insertModal">
+      <div class="modal">
+        <div class="modal-header">
+          <span class="modal-title">Insert entry — Sanction Memos</span>
+          <button class="modal-close" id="closeInsertModal">×</button>
+        </div>
+        <div class="modal-body">
+          <div class="alert alert-danger" style="margin-bottom:16px"><i class="ti ti-alert-circle"></i> Insert a record at any exact Sanction No. Existing records are never renumbered.</div>
+          <form method="POST" action="/sanctions/insert" id="insertForm">
+            <div class="form-grid">
+              <div class="form-group">
+                <label>Sanction No. <span class="req">*</span></label>
+                <input type="number" name="sanction_no_insert" required min="1" step="1" autocomplete="off" placeholder="e.g. 5"/>
+                <span class="field-hint">Must not already exist in this FY.</span>
+              </div>
+              <div class="form-group full">
+                <label>Date <span class="req">*</span></label>
+                <input type="date" name="date" required autocomplete="off"/>
+              </div>
+              <div class="form-group full">
+                <label>Expenditure Details <span class="req">*</span></label>
+                <textarea name="expenditure_details" required autocomplete="off"></textarea>
+              </div>
+              <div class="form-group">
+                <label>Amount (₹) <span class="req">*</span></label>
+                <input type="number" name="amount" required min="0" step="any" autocomplete="off"/>
+              </div>
+              <div class="form-group">
+                <label>Reference</label>
+                <input type="text" name="reference" autocomplete="off"/>
+              </div>
+              <div class="form-group full">
+                <label>Signature</label>
+                <input type="text" name="signature" autocomplete="off"/>
+              </div>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <span class="modal-footer-note"><i class="ti ti-info-circle"></i> Record will appear in correct sorted position</span>
+          <div class="modal-footer-actions">
+            <button class="btn btn-outline" id="cancelInsert">Cancel</button>
+            <button type="submit" form="insertForm" class="btn btn-primary">
+              <i class="ti ti-device-floppy"></i> Save entry
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>` : ''}
 
     <!-- Forgotten Entry Modal -->
     ${user.role === 'admin' ? `
@@ -215,6 +276,12 @@ router.get('/', checkAccess, (req, res) => {
           <form method="POST" action="/sanctions/edit" id="editForm">
             <input type="hidden" name="id" id="edit_id"/>
             <div class="form-grid">
+              ${user.role === 'admin' ? `
+              <div class="form-group full">
+                <label>Sanction No. <span class="req">*</span></label>
+                <input type="text" name="sl_no_text" id="edit_sl_no_text" required autocomplete="off"/>
+                <span class="field-hint">Admin only. Must be unique within this FY.</span>
+              </div>` : ''}
               <div class="form-group full">
                 <label>Date <span class="req">*</span></label>
                 <input type="date" name="date" id="edit_date" required autocomplete="off"/>
@@ -262,6 +329,12 @@ router.get('/', checkAccess, (req, res) => {
   if (cancelForgotten) cancelForgotten.addEventListener('click', () => document.getElementById('forgottenModal').classList.remove('active'));
   const closeForgotten = document.getElementById('closeForgottenModal');
   if (closeForgotten) closeForgotten.addEventListener('click', () => document.getElementById('forgottenModal').classList.remove('active'));
+  const insertBtn = document.getElementById('insertEntryBtn');
+  if (insertBtn) {
+    insertBtn.addEventListener('click', () => document.getElementById('insertModal').classList.add('active'));
+    document.getElementById('cancelInsert').addEventListener('click', () => document.getElementById('insertModal').classList.remove('active'));
+    document.getElementById('closeInsertModal').addEventListener('click', () => document.getElementById('insertModal').classList.remove('active'));
+  }
   </script>`;
   res.send(layout(user, 'Sanction Memos', body + saScript));
 });
@@ -282,36 +355,45 @@ router.post('/', checkAccess, (req, res) => {
   res.redirect('/sanctions?saved=' + sl_no);
 });
 
+router.post('/insert', (req, res) => {
+  if (req.session.user.role !== 'admin') return res.status(403).send('Admin only.');
+  const db   = getDb();
+  const user = req.session.user;
+  const { sanction_no_insert, date, expenditure_details, amount, reference, signature } = req.body;
+  if (!sanction_no_insert || isNaN(parseInt(sanction_no_insert))) return res.redirect('/sanctions');
+  if (!date || !expenditure_details) return res.redirect('/sanctions');
+  const fy = getFY(date);
+  const n  = parseInt(sanction_no_insert);
+  const existing = db.prepare('SELECT id FROM sanctions WHERE financial_year=? AND sl_no_text=?').get(fy, String(n));
+  if (existing) return res.redirect('/sanctions?error=Record+with+this+number+already+exists.');
+  db.prepare(`INSERT INTO sanctions (sl_no,sl_no_text,financial_year,sanction_no,date,expenditure_details,amount,reference,signature,entered_by)
+    VALUES (?,?,?,?,?,?,?,?,?,?)`)
+    .run(n, String(n), fy, String(n), date, expenditure_details, parseFloat(amount)||0, reference||'', signature||'', user.username);
+  res.redirect('/sanctions?saved=' + n);
+});
+
 router.post('/edit', checkAccess, (req, res) => {
   const db   = getDb();
   const user = req.session.user;
-  const { id, date, expenditure_details, amount, reference, signature } = req.body;
+  const { id, sl_no_text, date, expenditure_details, amount, reference, signature } = req.body;
   const existing = db.prepare('SELECT * FROM sanctions WHERE id=?').get(id);
   if (!existing) return res.redirect('/sanctions');
   if (user.role !== 'admin' && user.role !== 'user1' && !isEditable(existing.created_at)) return res.status(403).send('Entry is locked.');
-  db.prepare(`UPDATE sanctions SET date=?,expenditure_details=?,amount=?,reference=?,signature=? WHERE id=?`)
-    .run(date, expenditure_details, parseFloat(amount), reference||'', signature||'', id);
+  if (user.role === 'admin' && sl_no_text && sl_no_text !== (existing.sl_no_text || String(existing.sl_no))) {
+    const dup = db.prepare('SELECT id FROM sanctions WHERE financial_year=? AND sl_no_text=? AND id!=?').get(existing.financial_year, sl_no_text, id);
+    if (dup) return res.redirect('/sanctions?error=Record+with+this+number+already+exists.');
+    const newNum = parseInt(sl_no_text);
+    db.prepare(`UPDATE sanctions SET sl_no_text=?,sl_no=?,sanction_no=?,date=?,expenditure_details=?,amount=?,reference=?,signature=? WHERE id=?`)
+      .run(sl_no_text, isNaN(newNum) ? existing.sl_no : newNum, sl_no_text, date, expenditure_details, parseFloat(amount), reference||'', signature||'', id);
+  } else {
+    db.prepare(`UPDATE sanctions SET date=?,expenditure_details=?,amount=?,reference=?,signature=? WHERE id=?`)
+      .run(date, expenditure_details, parseFloat(amount), reference||'', signature||'', id);
+  }
   if (user.role !== 'admin') {
     writeNotification(db, 'Sanctions', id, 'edit', user.username,
       'Edited SL.NO ' + (existing.sl_no_text||existing.sl_no));
   }
   res.redirect('/sanctions');
-});
-
-router.post('/forgotten', (req, res) => {
-  if (req.session.user.role !== 'admin') return res.status(403).send('Admin only.');
-  const db   = getDb();
-  const user = req.session.user;
-  const { after_sl_no, date, expenditure_details, amount, reference, signature } = req.body;
-  const fy   = getFY(date);
-  const sl_text = db.transaction(() => {
-    const suffix = getNextSuffixSanction(db, after_sl_no, fy);
-    db.prepare(`INSERT INTO sanctions (sl_no,sl_no_text,financial_year,sanction_no,date,expenditure_details,amount,reference,signature,entered_by)
-      VALUES (?,?,?,?,?,?,?,?,?,?)`)
-      .run(parseInt(after_sl_no), suffix, fy, suffix, date, expenditure_details, parseFloat(amount), reference||'', signature||'', user.username);
-    return suffix;
-  })();
-  res.redirect('/sanctions?saved=' + sl_text);
 });
 
 router.post('/forgotten', (req, res) => {
