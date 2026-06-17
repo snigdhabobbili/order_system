@@ -65,7 +65,8 @@ router.get('/', checkAccess, (req, res) => {
       <td>${row.d_no_text || row.d_no}</td>
       <td>${fmtDate(row.date)}</td>
       <td>${row.to_whom_addressed}</td>
-      <td><div class="desc-short">${row.description}</div><div class="desc-full" style="display:none">${row.description}</div><span class="show-more-btn" onclick="toggleDesc(this)">show more</span></td>
+      <td>${row.description}</td>
+      
       <td>${row.file_no||'—'}</td>
       <td>${row.remarks||'—'}</td>
       <td>${row.entered_by}</td>

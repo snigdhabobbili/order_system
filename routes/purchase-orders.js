@@ -63,7 +63,8 @@ router.get('/', checkAccess, (req, res) => {
       <td>${row.sap_po_no}</td>
       <td>${fmtDate(row.date)}</td>
       <td>${row.name_supplier}</td>
-      <td><div class="desc-short">${row.description}</div><div class="desc-full" style="display:none">${row.description}</div><span class="show-more-btn" onclick="toggleDesc(this)">show more</span></td>
+      <td>${row.description}</td>
+      
       <td>${row.qty}</td>
       <td>${inr(row.rate)}</td>
       <td>${inr(row.po_cost)}</td>

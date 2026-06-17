@@ -44,7 +44,8 @@ router.get('/', checkAccess, (req, res) => {
     <tr>
       <td>${row.sl_no_text || row.sl_no}</td>
       <td>${fmtDate(row.date)}</td>
-      <td><div class="desc-short">${row.expenditure_details}</div><div class="desc-full" style="display:none">${row.expenditure_details}</div><span class="show-more-btn" onclick="toggleDesc(this)">show more</span></td>
+      <td>${row.expenditure_details}</td>
+      
       <td>${inr(row.amount)}</td>
       <td>${row.reference||'—'}</td>
       <td>${row.signature||'—'}</td>
