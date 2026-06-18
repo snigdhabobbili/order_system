@@ -1,4 +1,3 @@
-
 const express = require('express');
 const router  = express.Router();
 const getDb   = require('../db');
@@ -34,6 +33,7 @@ function assignFileNo(db, prefix, fy) {
   }
   return `${prefix}-${max + 1}`;
 }
+
 function checkAccess(req, res, next) {
   if (!ALLOWED.includes(req.session.user.role)) return res.status(403).send('Access denied.');
   next();
@@ -182,19 +182,13 @@ router.get('/', checkAccess, (req, res) => {
                 <input type="number" name="rate" id="rate" required min="0" step="any" autocomplete="off"/>
               </div>
               <div class="form-group">
-                <label>PO Cost (₹)</label>
-                <div class="calc-display" id="po_cost_display">₹ —</div>
-                <span class="field-hint">Auto: Qty × Rate</span>
-                <input type="hidden" name="po_cost" id="po_cost_hidden" value="0"/>
-              </div>
-              <div class="form-group">
                 <label>GST (%) <span class="req">*</span></label>
                 <input type="text" name="gst_percent" id="gst_percent" required autocomplete="off"/>
               </div>
               <div class="form-group full">
                 <label>Total Amount (₹)</label>
                 <div class="calc-display" id="total_display" style="font-size:15px;font-weight:700">₹ —</div>
-                <span class="field-hint">Auto: PO Cost + GST amount</span>
+                <span class="field-hint">Auto: Rate + GST amount</span>
                 <input type="hidden" name="total" id="total_hidden" value="0"/>
               </div>
               <div class="form-section-label">Reference &amp; Approval</div>
@@ -270,19 +264,13 @@ router.get('/', checkAccess, (req, res) => {
                 <input type="number" name="rate" id="ins_rate" required min="0" step="any" autocomplete="off"/>
               </div>
               <div class="form-group">
-                <label>PO Cost (₹)</label>
-                <div class="calc-display" id="ins_po_cost_display">₹ —</div>
-                <span class="field-hint">Auto: Qty × Rate</span>
-                <input type="hidden" name="po_cost" id="ins_po_cost_hidden" value="0"/>
-              </div>
-              <div class="form-group">
                 <label>GST (%) <span class="req">*</span></label>
                 <input type="text" name="gst_percent" id="ins_gst_percent" required autocomplete="off"/>
               </div>
               <div class="form-group full">
                 <label>Total (₹)</label>
                 <div class="calc-display" id="ins_total_display" style="font-size:15px;font-weight:700">₹ —</div>
-                <span class="field-hint">Auto: PO Cost + GST amount</span>
+                <span class="field-hint">Auto: Rate + GST amount</span>
                 <input type="hidden" name="total" id="ins_total_hidden" value="0"/>
               </div>
               <div class="form-group">
@@ -356,19 +344,13 @@ router.get('/', checkAccess, (req, res) => {
                 <input type="number" name="rate" id="f_rate" required min="0" step="any" autocomplete="off"/>
               </div>
               <div class="form-group">
-                <label>PO Cost (₹)</label>
-                <div class="calc-display" id="f_po_cost_display">₹ —</div>
-                <span class="field-hint">Auto: Qty × Rate</span>
-                <input type="hidden" name="po_cost" id="f_po_cost_hidden" value="0"/>
-              </div>
-              <div class="form-group">
                 <label>GST (%) <span class="req">*</span></label>
                 <input type="text" name="gst_percent" id="f_gst_percent" required autocomplete="off"/>
               </div>
               <div class="form-group full">
                 <label>Total (₹)</label>
                 <div class="calc-display" id="f_total_display" style="font-size:15px;font-weight:700">₹ —</div>
-                <span class="field-hint">Auto: PO Cost + GST amount</span>
+                <span class="field-hint">Auto: Rate + GST amount</span>
                 <input type="hidden" name="total" id="f_total_hidden" value="0"/>
               </div>
               <div class="form-group">
@@ -445,17 +427,13 @@ router.get('/', checkAccess, (req, res) => {
                 <input type="number" name="rate" id="edit_rate" required min="0" step="any" autocomplete="off"/>
               </div>
               <div class="form-group">
-                <label>PO Cost (₹)</label>
-                <div class="calc-display" id="edit_po_cost_display">₹ —</div>
-                <input type="hidden" name="po_cost" id="edit_po_cost_hidden" value="0"/>
-              </div>
-              <div class="form-group">
                 <label>GST (%) <span class="req">*</span></label>
                 <input type="text" name="gst_percent" id="edit_gst_percent" required autocomplete="off"/>
               </div>
               <div class="form-group full">
                 <label>Total Amount (₹)</label>
                 <div class="calc-display" id="edit_total_display" style="font-size:15px;font-weight:700">₹ —</div>
+                <span class="field-hint">Auto: Rate + GST amount</span>
                 <input type="hidden" name="total" id="edit_total_hidden" value="0"/>
               </div>
               <div class="form-section-label">Reference &amp; Approval</div>
@@ -509,52 +487,71 @@ router.get('/', checkAccess, (req, res) => {
   function formatInr(n) {
     return '\u20b9' + n.toLocaleString('en-IN', { minimumFractionDigits:2, maximumFractionDigits:2 });
   }
-  function calcForgotten() {
-    const q = parseFloat(document.getElementById('f_qty')?.value) || 0;
-    const r = parseFloat(document.getElementById('f_rate')?.value) || 0;
-    const g = parseFloat(document.getElementById('f_gst_percent')?.value) || 0;
-    const po  = q * r;
-    const tot = po + (po * g / 100);
-    const poDisp = document.getElementById('f_po_cost_display');
-    const totDisp = document.getElementById('f_total_display');
-    const poHid = document.getElementById('f_po_cost_hidden');
-    const totHid = document.getElementById('f_total_hidden');
-    if (poDisp)  poDisp.textContent  = formatInr(po);
+
+  function calcAdd() {
+    const r = parseFloat(document.getElementById('rate')?.value) || 0;
+    const g = parseFloat(document.getElementById('gst_percent')?.value) || 0;
+    const tot = r + (r * g / 100);
+    const totDisp = document.getElementById('total_display');
+    const totHid  = document.getElementById('total_hidden');
     if (totDisp) totDisp.textContent = formatInr(tot);
-    if (poHid)   poHid.value  = po.toFixed(2);
     if (totHid)  totHid.value = tot.toFixed(2);
   }
-  ['f_qty','f_rate','f_gst_percent'].forEach(id => {
+  ['rate','gst_percent'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', calcAdd);
+  });
+
+  function calcForgotten() {
+    const r = parseFloat(document.getElementById('f_rate')?.value) || 0;
+    const g = parseFloat(document.getElementById('f_gst_percent')?.value) || 0;
+    const tot = r + (r * g / 100);
+    const totDisp = document.getElementById('f_total_display');
+    const totHid  = document.getElementById('f_total_hidden');
+    if (totDisp) totDisp.textContent = formatInr(tot);
+    if (totHid)  totHid.value = tot.toFixed(2);
+  }
+  ['f_rate','f_gst_percent'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', calcForgotten);
   });
+
   function calcInsert() {
-    const q = parseFloat(document.getElementById('ins_qty')?.value) || 0;
     const r = parseFloat(document.getElementById('ins_rate')?.value) || 0;
     const g = parseFloat(document.getElementById('ins_gst_percent')?.value) || 0;
-    const po  = q * r;
-    const tot = po + (po * g / 100);
-    const poDisp = document.getElementById('ins_po_cost_display');
+    const tot = r + (r * g / 100);
     const totDisp = document.getElementById('ins_total_display');
-    const poHid = document.getElementById('ins_po_cost_hidden');
-    const totHid = document.getElementById('ins_total_hidden');
-    if (poDisp)  poDisp.textContent  = formatInr(po);
+    const totHid  = document.getElementById('ins_total_hidden');
     if (totDisp) totDisp.textContent = formatInr(tot);
-    if (poHid)   poHid.value  = po.toFixed(2);
     if (totHid)  totHid.value = tot.toFixed(2);
   }
-  ['ins_qty','ins_rate','ins_gst_percent'].forEach(id => {
+  ['ins_rate','ins_gst_percent'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.addEventListener('input', calcInsert);
   });
+
+  function calcEdit() {
+    const r = parseFloat(document.getElementById('edit_rate')?.value) || 0;
+    const g = parseFloat(document.getElementById('edit_gst_percent')?.value) || 0;
+    const tot = r + (r * g / 100);
+    const totDisp = document.getElementById('edit_total_display');
+    const totHid  = document.getElementById('edit_total_hidden');
+    if (totDisp) totDisp.textContent = formatInr(tot);
+    if (totHid)  totHid.value = tot.toFixed(2);
+  }
+  ['edit_rate','edit_gst_percent'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', calcEdit);
+  });
   </script>`;
+
   res.send(layout(user, 'Purchase Orders', body + poScript));
 });
 
 router.post('/', checkAccess, (req, res) => {
   const db   = getDb();
   const user = req.session.user;
-  const { date, sap_po_no, name_supplier, description, qty, rate, po_cost, gst_percent, total, file_no_prefix, sign } = req.body;
+  const { date, sap_po_no, name_supplier, description, qty, rate, gst_percent, total, file_no_prefix, sign } = req.body;
   if (!file_no_prefix) return res.redirect('/purchase-orders');
   if (!gst_percent) return res.redirect('/purchase-orders');
   const fy   = getFY(date);
@@ -566,7 +563,7 @@ router.post('/', checkAccess, (req, res) => {
       (sl_no,sl_no_text,financial_year,date,sap_po_no,name_supplier,description,qty,rate,po_cost,gst_percent,total,file_no,sign,entered_by)
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
       .run(n, String(n), fy, date, sap_po_no, name_supplier, description,
-           parseFloat(qty)||0, parseFloat(rate)||0, parseFloat(po_cost)||0,
+           parseFloat(qty)||0, parseFloat(rate)||0, parseFloat(rate)||0,
            gst_percent||'0', parseFloat(total)||0, file_no, sign||'', user.username);
     return n;
   })();
@@ -577,12 +574,11 @@ router.post('/insert', (req, res) => {
   if (req.session.user.role !== 'admin') return res.status(403).send('Admin only.');
   const db   = getDb();
   const user = req.session.user;
-  const { sl_no_insert, date, sap_po_no, name_supplier, description, qty, rate, po_cost, gst_percent, total, file_no_prefix, sign } = req.body;
+  const { sl_no_insert, date, sap_po_no, name_supplier, description, qty, rate, gst_percent, total, file_no_prefix, sign } = req.body;
   if (!sl_no_insert || isNaN(parseInt(sl_no_insert))) return res.redirect('/purchase-orders');
   if (!date || !sap_po_no || !name_supplier || !description || !file_no_prefix || !gst_percent) return res.redirect('/purchase-orders');
   const fy = getFY(date);
   const n  = parseInt(sl_no_insert);
-  // Duplicate check
   const existing = db.prepare('SELECT id FROM purchase_orders WHERE financial_year=? AND sl_no_text=?').get(fy, String(n));
   if (existing) return res.redirect('/purchase-orders?error=Record+with+this+number+already+exists.');
   const file_no = assignFileNo(db, file_no_prefix, fy);
@@ -590,7 +586,7 @@ router.post('/insert', (req, res) => {
     (sl_no,sl_no_text,financial_year,date,sap_po_no,name_supplier,description,qty,rate,po_cost,gst_percent,total,file_no,sign,entered_by)
     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
     .run(n, String(n), fy, date, sap_po_no, name_supplier, description,
-         parseFloat(qty)||0, parseFloat(rate)||0, parseFloat(po_cost)||0,
+         parseFloat(qty)||0, parseFloat(rate)||0, parseFloat(rate)||0,
          gst_percent||'0', parseFloat(total)||0, file_no, sign||'', user.username);
   res.redirect('/purchase-orders?saved=' + n);
 });
@@ -598,22 +594,21 @@ router.post('/insert', (req, res) => {
 router.post('/edit', checkAccess, (req, res) => {
   const db   = getDb();
   const user = req.session.user;
-  const { id, sl_no_text, date, sap_po_no, name_supplier, description, qty, rate, po_cost, gst_percent, total, file_no, sign } = req.body;
+  const { id, sl_no_text, date, sap_po_no, name_supplier, description, qty, rate, gst_percent, total, file_no, sign } = req.body;
   const existing = db.prepare('SELECT * FROM purchase_orders WHERE id=?').get(id);
   if (!existing) return res.redirect('/purchase-orders');
   if (user.role !== 'admin' && user.role !== 'user1' && !isEditable(existing.created_at)) return res.status(403).send('Entry is locked.');
-  // Admin: validate sl_no_text uniqueness if changed
   if (user.role === 'admin' && sl_no_text && sl_no_text !== (existing.sl_no_text || String(existing.sl_no))) {
     const dup = db.prepare('SELECT id FROM purchase_orders WHERE financial_year=? AND sl_no_text=? AND id!=?').get(existing.financial_year, sl_no_text, id);
     if (dup) return res.redirect('/purchase-orders?error=Record+with+this+number+already+exists.');
     const newNum = parseInt(sl_no_text);
     db.prepare(`UPDATE purchase_orders SET sl_no_text=?,sl_no=?,date=?,sap_po_no=?,name_supplier=?,description=?,qty=?,rate=?,po_cost=?,gst_percent=?,total=?,file_no=?,sign=? WHERE id=?`)
       .run(sl_no_text, isNaN(newNum) ? existing.sl_no : newNum, date, sap_po_no, name_supplier, description,
-           parseFloat(qty), parseFloat(rate), parseFloat(po_cost), gst_percent, parseFloat(total), file_no||'', sign||'', id);
+           parseFloat(qty), parseFloat(rate), parseFloat(rate), gst_percent, parseFloat(total), file_no||'', sign||'', id);
   } else {
     db.prepare(`UPDATE purchase_orders SET date=?,sap_po_no=?,name_supplier=?,description=?,qty=?,rate=?,po_cost=?,gst_percent=?,total=?,file_no=?,sign=? WHERE id=?`)
       .run(date, sap_po_no, name_supplier, description, parseFloat(qty), parseFloat(rate),
-           parseFloat(po_cost), gst_percent, parseFloat(total), file_no||'', sign||'', id);
+           parseFloat(rate), gst_percent, parseFloat(total), file_no||'', sign||'', id);
   }
   if (user.role !== 'admin') {
     writeNotification(db, 'Purchase Orders', id, 'edit', user.username,
@@ -633,7 +628,6 @@ router.post('/forgotten', (req, res) => {
   if (!file_no_prefix) return res.redirect('/purchase-orders');
   if (!gst_percent) return res.redirect('/purchase-orders');
   const fy   = getFY(date);
-  const po_cost = (parseFloat(qty)||0) * (parseFloat(rate)||0);
   const sl_text = db.transaction(() => {
     const suffix = getNextSuffixPO(db, after_sl_no, fy);
     const file_no = file_no_prefix ? assignFileNo(db, file_no_prefix, fy) : '';
@@ -641,7 +635,7 @@ router.post('/forgotten', (req, res) => {
       (sl_no,sl_no_text,financial_year,date,sap_po_no,name_supplier,description,qty,rate,po_cost,gst_percent,total,file_no,sign,entered_by)
       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
       .run(parseInt(after_sl_no)||0, suffix, fy, date, sap_po_no, name_supplier, description,
-           parseFloat(qty)||0, parseFloat(rate)||0, po_cost,
+           parseFloat(qty)||0, parseFloat(rate)||0, parseFloat(rate)||0,
            gst_percent||'0', parseFloat(total)||0, file_no, sign||'', user.username);
     return suffix;
   })();

@@ -1,25 +1,25 @@
 // ── Search / filter ────────────────────────────────────────────────────────
 function initSearch() {
-  const searchInput = document.getElementById('searchInput');
-  const dateFrom    = document.getElementById('dateFrom');
-  const dateTo      = document.getElementById('dateTo');
-  const statusFilter= document.getElementById('statusFilter');
-  const clearBtn    = document.getElementById('clearFilters');
-  const tbody       = document.getElementById('tableBody');
+  const searchInput  = document.getElementById('searchInput');
+  const dateFrom     = document.getElementById('dateFrom');
+  const dateTo       = document.getElementById('dateTo');
+  const statusFilter = document.getElementById('statusFilter');
+  const clearBtn     = document.getElementById('clearFilters');
+  const tbody        = document.getElementById('tableBody');
   if (!searchInput || !tbody) return;
 
   function filterRows() {
     const q      = searchInput.value.toLowerCase();
-    const from   = dateFrom  ? dateFrom.value  : '';
-    const to     = dateTo    ? dateTo.value    : '';
+    const from   = dateFrom   ? dateFrom.value   : '';
+    const to     = dateTo     ? dateTo.value     : '';
     const status = statusFilter ? statusFilter.value : '';
     const rows   = tbody.querySelectorAll('tr');
     let visible  = 0;
 
     rows.forEach(row => {
-      const text     = row.textContent.toLowerCase();
-      const rowDate  = row.dataset.date  || '';
-      const rowStatus= row.dataset.status|| '';
+      const text      = row.textContent.toLowerCase();
+      const rowDate   = row.dataset.date   || '';
+      const rowStatus = row.dataset.status || '';
 
       const matchQ      = !q      || text.includes(q);
       const matchFrom   = !from   || rowDate >= from;
@@ -39,16 +39,16 @@ function initSearch() {
   }
 
   searchInput.addEventListener('input', filterRows);
-  if (dateFrom)    dateFrom.addEventListener('change', filterRows);
-  if (dateTo)      dateTo.addEventListener('change', filterRows);
-  if (statusFilter)statusFilter.addEventListener('change', filterRows);
+  if (dateFrom)     dateFrom.addEventListener('change', filterRows);
+  if (dateTo)       dateTo.addEventListener('change', filterRows);
+  if (statusFilter) statusFilter.addEventListener('change', filterRows);
 
   if (clearBtn) {
     clearBtn.addEventListener('click', () => {
       searchInput.value = '';
-      if (dateFrom)    dateFrom.value  = '';
-      if (dateTo)      dateTo.value    = '';
-      if (statusFilter)statusFilter.value = '';
+      if (dateFrom)     dateFrom.value     = '';
+      if (dateTo)       dateTo.value       = '';
+      if (statusFilter) statusFilter.value = '';
       filterRows();
     });
   }
@@ -61,22 +61,21 @@ function initSort() {
     th.addEventListener('click', () => {
       const tbody = document.getElementById('tableBody');
       if (!tbody) return;
-      const col  = th.dataset.sort;
-      const asc  = th.dataset.asc !== 'true';
+      const col = th.dataset.sort;
+      const asc = th.dataset.asc !== 'true';
       th.dataset.asc = asc;
 
       const rows = Array.from(tbody.querySelectorAll('tr'));
       rows.sort((a, b) => {
         const aVal = a.querySelector(`td[data-col="${col}"]`)?.textContent.trim() || '';
         const bVal = b.querySelector(`td[data-col="${col}"]`)?.textContent.trim() || '';
-        const n    = parseFloat(aVal.replace(/[^0-9.-]/g,''));
-        const m    = parseFloat(bVal.replace(/[^0-9.-]/g,''));
+        const n = parseFloat(aVal.replace(/[^0-9.-]/g,''));
+        const m = parseFloat(bVal.replace(/[^0-9.-]/g,''));
         if (!isNaN(n) && !isNaN(m)) return asc ? n - m : m - n;
         return asc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
       });
       rows.forEach(r => tbody.appendChild(r));
 
-      // update sort icons
       document.querySelectorAll('th[data-sort]').forEach(h => {
         h.querySelector('.sort-icon').className = 'sort-icon ti ti-selector';
       });
@@ -86,36 +85,30 @@ function initSort() {
 }
 
 // ── Auto-calculate PO fields ───────────────────────────────────────────────
+// Total = Rate + (Rate × GST/100). Rate already covers the full quantity.
+
 function initPOCalc() {
-  const qty     = document.getElementById('qty');
-  const rate    = document.getElementById('rate');
-  const gst     = document.getElementById('gst_percent');
-  const poCost  = document.getElementById('po_cost_display');
-  const total   = document.getElementById('total_display');
-  const poCostH = document.getElementById('po_cost_hidden');
-  const totalH  = document.getElementById('total_hidden');
-  if (!qty || !rate || !gst) return;
+  const rate   = document.getElementById('rate');               // Rate input
+  const gst    = document.getElementById('gst_percent');        // GST % input
+  const total  = document.getElementById('total_display');      // Display label showing Total
+  const totalH = document.getElementById('total_hidden');       // Hidden input that submits Total
+  if (!rate || !gst) return;                                    // Not on a PO page, skip
 
   function calc() {
-    const q = parseFloat(qty.value)  || 0;
-    const r = parseFloat(rate.value) || 0;
-    const g = parseFloat(gst.value)  || 0;
-    const po    = q * r;
-    const tot   = po + (po * g / 100);
-    if (poCost)  poCost.textContent  = '₹' + formatNum(po);
-    if (total)   total.textContent   = '₹' + formatNum(tot);
-    if (poCostH) poCostH.value       = po.toFixed(2);
-    if (totalH)  totalH.value        = tot.toFixed(2);
+    const r   = parseFloat(rate.value) || 0;                   // Rate (0 if empty)
+    const g   = parseFloat(gst.value)  || 0;                   // GST % (0 if empty)
+    const tot = r + (r * g / 100);                             // Total = Rate + GST amount
+    if (total)  total.textContent = '₹' + formatNum(tot);      // Update visible display
+    if (totalH) totalH.value      = tot.toFixed(2);            // Update hidden input
   }
 
-  qty.addEventListener('input', calc);
-  rate.addEventListener('input', calc);
-  gst.addEventListener('change', calc);
+  rate.addEventListener('input', calc);                         // Recalculate whenever rate changes
+  gst.addEventListener('input', calc);                          // Recalculate when GST % changes
 }
 
 // ── Auto-calculate Sanctions amount display ────────────────────────────────
 function initSanctionCalc() {
-  const amtInput = document.getElementById('amount');
+  const amtInput   = document.getElementById('amount');
   const amtDisplay = document.getElementById('amount_display');
   if (!amtInput || !amtDisplay) return;
   amtInput.addEventListener('input', () => {
@@ -124,6 +117,7 @@ function initSanctionCalc() {
   });
 }
 
+// Formats a number in Indian format e.g. 123456.5 → "1,23,456.50"
 function formatNum(n) {
   return n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
@@ -152,21 +146,23 @@ function initAddEntry() {
 function initEditEntry() {
   document.querySelectorAll('.edit-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const id     = btn.dataset.id;
-      const data   = JSON.parse(btn.dataset.record || '{}');
-      const modal  = document.getElementById('editModal');
+      const id    = btn.dataset.id;
+      const data  = JSON.parse(btn.dataset.record || '{}');
+      const modal = document.getElementById('editModal');
       if (!modal) return;
-      // populate all fields
+
       Object.entries(data).forEach(([k, v]) => {
         const el = modal.querySelector(`[name="${k}"]`);
         if (el) el.value = v;
       });
-      // recalc if PO
+
+      // Trigger recalculation for edit modal fields
       const calcEvent = new Event('input');
-      ['qty','rate'].forEach(f => {
+      ['rate', 'gst_percent'].forEach(f => {
         const el = modal.querySelector(`[name="${f}"]`);
         if (el) el.dispatchEvent(calcEvent);
       });
+
       openModal('editModal');
     });
   });
@@ -178,7 +174,6 @@ function initEditEntry() {
 
 // ── Delete confirm ─────────────────────────────────────────────────────────
 function initDelete() {
-  // Restore scroll position after delete reload
   const savedScroll = sessionStorage.getItem('deleteScrollY');
   if (savedScroll) {
     window.scrollTo(0, parseInt(savedScroll));
@@ -187,8 +182,8 @@ function initDelete() {
 
   document.querySelectorAll('.delete-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const id    = btn.dataset.id;
-      const label = btn.dataset.label || 'this entry';
+      const id      = btn.dataset.id;
+      const label   = btn.dataset.label || 'this entry';
       const overlay = document.getElementById('confirmOverlay');
       const detail  = document.getElementById('confirmDetail');
       const form    = document.getElementById('deleteForm');
@@ -204,7 +199,6 @@ function initDelete() {
     document.getElementById('confirmOverlay').classList.remove('active');
   });
 
-  // Save scroll position when delete is confirmed
   const deleteForm = document.getElementById('deleteForm');
   if (deleteForm) {
     deleteForm.addEventListener('submit', () => {
@@ -272,7 +266,7 @@ function initFYSelector() {
   const sel = document.getElementById('fySelect');
   if (!sel) return;
   sel.addEventListener('change', () => {
-    const fy = sel.value;
+    const fy  = sel.value;
     const url = new URL(window.location.href);
     url.searchParams.set('fy', fy);
     window.location.href = url.toString();
@@ -295,11 +289,11 @@ document.addEventListener('DOMContentLoaded', () => {
   initFYSelector();
 });
 
-// Show more / show less for description cells
+// ── Show more / show less for description cells ────────────────────────────
 function toggleDesc(btn) {
-  const td       = btn.parentElement;
-  const short    = td.querySelector('.desc-short');
-  const full     = td.querySelector('.desc-full');
+  const td        = btn.parentElement;
+  const short     = td.querySelector('.desc-short');
+  const full      = td.querySelector('.desc-full');
   const isShowing = full.style.display === 'none';
 
   if (isShowing) {

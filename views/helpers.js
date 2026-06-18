@@ -1,14 +1,14 @@
-const { isEditable } = require('../views/layout');
+const { isEditable } = require('../views/layout'); //Import the isEditable function from layout.js.isEditable checks if an entry was created within the last 24 hours
 
 /** Format date stored as yyyy-mm-dd → dd-mm-yyyy for display */
-function fmtDate(d) {
-  if (!d) return '—';
-  const parts = d.split('-');
-  if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`;
+function fmtDate(d) { //Converts a date from database format to display format.
+  if (!d) return '—'; //if date is empty/null, show a dash
+  const parts = d.split('-'); // splits "2026-04-01" into ["2026", "04", "01"]
+  if (parts.length === 3) return `${parts[2]}-${parts[1]}-${parts[0]}`; // reverses the order: "01-04-2026"
   return d;
 }
 
-function actionButtons(row, user, isArchive, deleteBase, labelFn) {
+function actionButtons(row, user, isArchive, deleteBase, labelFn) { //Builds the Edit and Delete buttons for each table row
   if (isArchive) {
     if (user.role === 'admin') {
       return '<form method="POST" action="' + deleteBase + '/' + row.id + '/delete" style="margin:0" onsubmit="return confirm(&quot;Delete this archived record permanently? This cannot be undone.&quot;)"><button class="btn-delete-sm" type="submit">Delete</button></form>';
@@ -66,7 +66,7 @@ function successOverlay(serialLabel, serialValue) {
         <div class="success-title">Entry saved successfully</div>
         <div class="success-text">Your entry has been recorded. ${serialLabel} assigned:</div>
         <div class="serial-badge">${serialValue}</div>
-        <div class="success-text" style="margin-top:8px">Entry is editable for the next 24 hours.</div>
+        
       </div>
       <div class="success-footer">
         <button class="btn btn-success" id="successDone">Done</button>
