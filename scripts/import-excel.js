@@ -17,16 +17,20 @@ function getCurrentFY() {
 }
 
 function normalizeFY(fy) {
+  // '22-23' → '2022-2023'
+  if (/^\d{2}-\d{2}$/.test(fy)) {
+    return `20${fy.slice(0,2)}-20${fy.slice(3)}`;
+  }
   // '2024-25' → '2024-2025'
   if (/^\d{4}-\d{2}$/.test(fy)) {
     const startYear = fy.slice(0, 4);
     return `${startYear}-${startYear.slice(0, 2)}${fy.slice(5)}`;
   }
-  return fy;
+  return fy; // already '2024-2025'
 }
 
 // ── Parse args ────────────────────────────────────────────────
-const FY_PATTERN = /^\d{4}-\d{2,4}$/;
+const FY_PATTERN = /^\d{2,4}-\d{2,4}$/;
 const args = process.argv.slice(2);
 
 let FY, fileArgs;
@@ -341,7 +345,10 @@ if (args.length === 0) {
   console.log('  FY examples: 2024-25 or 2024-2025 (optional, defaults to current FY)');
   process.exit(0);
 }
-
+//# Purchase Orders - current FY
+//node scripts/import-excel.js po /Users/bobbilisnigdha/Desktop/purchase_order_register.xlsx
+//Purchase Orders
+//node scripts/import-excel.js po 2024-25 /Users/bobbilisnigdha/Desktop/purchase_order_register.xlsx
 if (args[0] === 'inward')    importInward(fileArgs[0]);
 if (args[0] === 'outward')   importOutward(fileArgs[0]);
 if (args[0] === 'sanctions') importSanctions(fileArgs[0]);
