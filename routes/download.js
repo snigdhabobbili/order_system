@@ -46,18 +46,13 @@ function getRows(db, module, fy) {          // db = database, module = which reg
   return allRows;                          // Return the sorted array of database rows
 }
 
-// ── Config: column headers, data mapping, and widths per register ──────────
-
-function moduleConfig(module) {            // Returns display config for the requested module
+function moduleConfig(module) {
   return {
     'purchase-orders': {
-      title: 'Purchase Orders',            // Sheet/page title shown in Excel and PDF
-      headers: ['SL.NO','SAP PO No.','Date','Name & Supplier','Description','Qty','Rate (₹)','PO Cost (₹)','GST (%)','Total (₹)','F.NO','Sign'],
-                                           // Column header labels shown in row 1 of the table
-      row: r => [r.sl_no_text||r.sl_no, r.sap_po_no, r.date, r.name_supplier, r.description, r.qty, inr(r.rate), inr(r.po_cost), r.gst_percent+'%', inr(r.total), r.file_no||'', r.sign||''],
-                                           // Function that maps a DB record (r) to an array of cell values
-      colWidths: [0.05, 0.09, 0.08, 0.12, 0.24, 0.04, 0.08, 0.08, 0.05, 0.08, 0.05, 0.14],
-                                           // Each number is a fraction of total page width (must add up to ~1)
+      title: 'Purchase Orders',
+      headers: ['SL.NO','SAP PO No.','Date','Name & Supplier','Description','Qty','Rate (₹)','GST (%)','GST Value (₹)','Total (₹)','F.NO','Sign'],
+      row: r => [r.sl_no_text||r.sl_no, r.sap_po_no, r.date, r.name_supplier, r.description, r.qty, inr(r.rate), r.gst_percent+'%', inr(r.po_cost), inr(r.total), r.file_no||'', r.sign||''],
+      colWidths: [0.05, 0.09, 0.08, 0.12, 0.24, 0.04, 0.08, 0.05, 0.08, 0.08, 0.05, 0.14],
     },
     'sanctions': {
       title: 'Sanctions',
@@ -66,22 +61,19 @@ function moduleConfig(module) {            // Returns display config for the req
       colWidths: [0.06, 0.08, 0.09, 0.38, 0.1, 0.17, 0.12],
     },
     'inward': {
-  title: 'Inward Orders',
-  headers: ['C.NO','Date','Received From','Subject','File No.'],
-  row: r => [r.c_no_text||r.c_no, r.date, r.received_from, r.subject, r.file_no||''],
-  colWidths: [0.08, 0.12, 0.24, 0.42, 0.14],
-},
+      title: 'Inward Orders',
+      headers: ['C.NO','Date','Received From','Subject','File No.'],
+      row: r => [r.c_no_text||r.c_no, r.date, r.received_from, r.subject, r.file_no||''],
+      colWidths: [0.08, 0.12, 0.24, 0.42, 0.14],
+    },
     'outward': {
-  title: 'Outward Orders',
-  headers: ['D.NO','Date','To Whom Addressed','Description/Subject','File No.'],
-  row: r => [r.d_no_text||r.d_no, r.date, r.to_whom_addressed, r.description, r.file_no||''],
-  colWidths: [0.08, 0.12, 0.24, 0.42, 0.14],
-},
-  }[module] || null;                       // Look up the module key; return null if not found
+      title: 'Outward Orders',
+      headers: ['D.NO','Date','To Whom Addressed','Description/Subject','File No.'],
+      row: r => [r.d_no_text||r.d_no, r.date, r.to_whom_addressed, r.description, r.file_no||''],
+      colWidths: [0.08, 0.12, 0.24, 0.42, 0.14],
+    },
+  }[module] || null;
 }
-
-// ── Route: GET /export/:module/excel ──────────────────────────────────────
-// e.g. GET /export/purchase-orders/excel?fy=2024-25
 
 router.get('/:module/excel', async (req, res) => {
   const db   = getDb();                    // Open database connection

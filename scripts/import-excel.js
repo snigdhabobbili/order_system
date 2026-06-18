@@ -26,7 +26,7 @@ function normalizeFY(fy) {
     const startYear = fy.slice(0, 4);
     return `${startYear}-${startYear.slice(0, 2)}${fy.slice(5)}`;
   }
-  return fy; // already '2024-2025'
+  return fy;
 }
 
 // ── Parse args ────────────────────────────────────────────────
@@ -45,17 +45,16 @@ if (args.length >= 3 && FY_PATTERN.test(args[1])) {
 // ── Helper: find sheet by FY ──────────────────────────────────
 function findSheet(wb, fy) {
   const [fyStart, fyEnd] = fy.split('-');
-  const shortFY = `${fyStart.slice(2)}-${fyEnd.slice(2)}`; // '26-27'
-  const shortStart = fyStart.slice(2);                      // '26'  (for PO tabs like '2026')
+  const shortFY    = `${fyStart.slice(2)}-${fyEnd.slice(2)}`; // '26-27'
+  const shortStart = fyStart.slice(2);                         // '26'
 
-  const sheet = wb.SheetNames.find(n =>
-    n.trim() === fyStart ||           // '2026'
-    n.trim() === shortFY ||           // '26-27'
-    n.includes(fyStart) ||            // '2026-27', '2026'
-    n.includes(shortFY) ||            // '26-27'
-    n.includes(`${fyStart}-${fyEnd.slice(2)}`) // '2026-27'
-  );
-  return sheet || null;
+  return wb.SheetNames.find(n =>
+    n.trim() === fyStart ||
+    n.trim() === shortFY ||
+    n.includes(fyStart) ||
+    n.includes(shortFY) ||
+    n.includes(`${fyStart}-${fyEnd.slice(2)}`)
+  ) || null;
 }
 
 // ── Helper: parse date from Excel ─────────────────────────────
@@ -79,6 +78,16 @@ function parseDate(val) {
 // ── Helper: safe number ───────────────────────────────────────
 function toNum(val) {
   const n = parseFloat(String(val).replace(/,/g, '').trim());
+  return isNaN(n) ? 0 : n;
+}
+
+// ── Helper: extract GST% from text like "inclusive of gst 18%" ──
+function extractGST(val) {
+  if (!val) return 0;
+  const s = String(val).trim();
+  const m = s.match(/(\d+(\.\d+)?)\s*%/);
+  if (m) return parseFloat(m[1]);
+  const n = parseFloat(s);
   return isNaN(n) ? 0 : n;
 }
 
@@ -188,19 +197,6 @@ function importOutward(filePath) {
 }
 
 // ── SANCTIONS ─────────────────────────────────────────────────
-// Excel columns (0-indexed), data starts row 3 (i=2):
-//   A=0  Sl.No
-//   B=1  Sanction No.
-//   C=2  Date
-//   D=3  Reference
-//   E=4  Description
-//   F=5  Division         (no DB column — stored in description suffix if needed, skipped)
-//   G=6  Amount without GST  → amount
-//   H=7  % GST in Rs.       → (ignored, not in schema)
-//   I=8  Total               → (ignored, not in schema)
-//
-// DB columns: sl_no, sl_no_text, financial_year, sanction_no, date,
-//             expenditure_details, amount, reference, entered_by
 function importSanctions(filePath) {
   console.log('\nImporting Sanctions from:', filePath);
   console.log('Financial Year:', FY);
@@ -236,7 +232,6 @@ function importSanctions(filePath) {
     const desc       = String(row[4] || '').trim();
     const amount     = toNum(row[6]);
 
-    // Skip empty rows — need at least sl_no and description
     if (!slno || !desc) { skipped++; continue; }
     const slnoNum = parseInt(slno);
     if (isNaN(slnoNum)) { skipped++; continue; }
@@ -256,24 +251,6 @@ function importSanctions(filePath) {
 }
 
 // ── PURCHASE ORDERS ───────────────────────────────────────────
-// Excel columns (0-indexed), data starts row 3 (i=2):
-//   A=0  Sl.No
-//   B=1  Financial yr      (ignored — we use FY arg)
-//   C=2  SAP PO Number
-//   D=3  Date
-//   E=4  Name of Supplier
-//   F=5  Description
-//   G=6  Quantity
-//   H=7  Rate
-//   I=8  Total (po_cost)
-//   J=9  GST @
-//   K=10 Total Amount
-//
-// DB columns: sl_no, sl_no_text, financial_year, date, sap_po_no,
-//             name_supplier, description, qty, rate, po_cost,
-//             gst_percent, total, entered_by
-//
-// NOTE: PO sheet tabs use short start year only e.g. '2026', '2024-25'
 function importPurchaseOrders(filePath) {
   console.log('\nImporting Purchase Orders from:', filePath);
   console.log('Financial Year:', FY);
@@ -309,11 +286,10 @@ function importPurchaseOrders(filePath) {
     const desc     = String(row[5] || '').trim();
     const qty      = toNum(row[6]);
     const rate     = toNum(row[7]);
-    const poCost   = toNum(row[8]);
-    const gstPct   = toNum(row[9]);
-    const total    = toNum(row[10]);
+    const gstPct   = extractGST(row[9]);
+    const gstValue = rate * gstPct / 100;
+    const total    = rate + gstValue;
 
-    // Skip empty rows
     if (!slno || !supplier || !desc) { skipped++; continue; }
     const slnoNum = parseInt(slno);
     if (isNaN(slnoNum)) { skipped++; continue; }
@@ -322,8 +298,8 @@ function importPurchaseOrders(filePath) {
     if (!date) { console.warn(`  Row ${i+1}: bad date "${dateRaw}", skipping`); skipped++; continue; }
 
     try {
-      insert.run(slnoNum, String(slnoNum), FY, date, sapPoNo, supplier, desc,
-                 qty, rate, poCost, gstPct, total, ENTERED_BY);
+      insert.run(slnoNum, slno, FY, date, sapPoNo, supplier, desc,
+                 qty, rate, gstValue, gstPct, total, ENTERED_BY);
       count++;
     } catch(e) {
       console.warn(`  Row ${i+1}: ${e.message}`);
@@ -342,13 +318,10 @@ if (args.length === 0) {
   console.log('  node scripts/import-excel.js po        [FY] <file.xlsx>');
   console.log('  node scripts/import-excel.js both      [FY] <inward.xlsx> <outward.xlsx>');
   console.log('');
-  console.log('  FY examples: 2024-25 or 2024-2025 (optional, defaults to current FY)');
+  console.log('  FY examples: 22-23, 2024-25 or 2024-2025 (optional, defaults to current FY)');
   process.exit(0);
 }
-//# Purchase Orders - current FY
-//node scripts/import-excel.js po /Users/bobbilisnigdha/Desktop/purchase_order_register.xlsx
-//Purchase Orders
-//node scripts/import-excel.js po 2024-25 /Users/bobbilisnigdha/Desktop/purchase_order_register.xlsx
+
 if (args[0] === 'inward')    importInward(fileArgs[0]);
 if (args[0] === 'outward')   importOutward(fileArgs[0]);
 if (args[0] === 'sanctions') importSanctions(fileArgs[0]);

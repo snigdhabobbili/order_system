@@ -64,12 +64,10 @@ router.get('/', checkAccess, (req, res) => {
       <td>${fmtDate(row.date)}</td>
       <td>${row.name_supplier}</td>
       <td>${row.description}</td>
-      
       <td>${row.qty}</td>
       <td>${inr(row.rate)}</td>
-      <td>${inr(row.po_cost)}</td>
       <td>${row.gst_percent}%</td>
-      <td>${inr((row.total||0) - (row.po_cost||0))}</td>
+      <td>${inr((row.total || 0) - (row.rate || 0))}</td>
       <td>${inr(row.total)}</td>
       <td>${row.file_no||'—'}</td>
       <td>${row.sign||'—'}</td>
@@ -128,19 +126,17 @@ router.get('/', checkAccess, (req, res) => {
               <th>Description / Particulars</th>
               <th>Qty</th>
               <th>Rate (₹)</th>
-              <th>PO Cost (₹)</th>
               <th>GST (%)</th>
-               <th>GST Value (₹)</th>
+              <th>GST Value (₹)</th>
               <th>Total (₹)</th>
               <th>F.NO</th>
               <th>Sign</th>
               <th>Entered By</th>
-              
               <th>Actions</th>
             </tr>
           </thead>
           <tbody id="tableBody">
-            ${tableRows || `<tr><td colspan="15"><div class="empty-state"><i class="ti ti-inbox"></i><p>No entries yet. Click <strong>Add entry</strong> to get started.</p></div></td></tr>`}
+            ${tableRows || `<tr><td colspan="14"><div class="empty-state"><i class="ti ti-inbox"></i><p>No entries yet. Click <strong>Add entry</strong> to get started.</p></div></td></tr>`}
           </tbody>
         </table>
       </div>
@@ -464,10 +460,16 @@ router.get('/', checkAccess, (req, res) => {
               </div>
               <div class="form-section-label">Reference &amp; Approval</div>
               <div class="form-group">
-                <label>F.NO</label>
-                <input type="text" name="file_no" id="edit_file_no" autocomplete="off" placeholder="e.g. 74-2"/>
-                <span class="field-hint">Auto-assigned on add. Edit only if correction needed.</span>
-              </div>
+  <label>F.NO</label>
+  <select name="file_no" id="edit_file_no" class="filter-select" style="width:100%">
+    <option value="">— Select F.NO —</option>
+    <option value="19">19 - DE/IT</option>
+    <option value="33">33 - DE/Telecom</option>
+    <option value="74">74 - DE/Basis</option>
+    <option value="75">75 - DE/IT 2</option>
+  </select>
+  <span class="field-hint">Select the F.NO prefix.</span>
+</div>
               <div class="form-group">
                 <label>Sign</label>
                 <input type="text" name="sign" id="edit_sign" autocomplete="off"/>
