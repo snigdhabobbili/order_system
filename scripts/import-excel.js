@@ -316,7 +316,7 @@ if (args.length === 0) {
   console.log('  node scripts/import-excel.js outward   [FY] <file.xlsx>');
   console.log('  node scripts/import-excel.js sanctions [FY] <file.xlsx>');
   console.log('  node scripts/import-excel.js po        [FY] <file.xlsx>');
-  console.log('  node scripts/import-excel.js both      [FY] <inward.xlsx> <outward.xlsx>');
+ 
   console.log('');
   console.log('  FY examples: 22-23, 2024-25 or 2024-2025 (optional, defaults to current FY)');
   process.exit(0);
@@ -333,3 +333,7 @@ if (args[0] === 'both') {
 
 db.close();
 console.log('\nDone.');
+// import current FY entries
+//node scripts/import-excel.js po /Users/bobbilisnigdha/Desktop/purchase.xlsx
+// import prevoius FY entries
+//node scripts/import-excel.js po 2025-2026 /Users/bobbilisnigdha/Desktop/purchase_order_register.xlsx
