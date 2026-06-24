@@ -9,7 +9,7 @@ function getFY(date) {
   const year = d.getFullYear();
   const month = d.getMonth() + 1; // 1-indexed
   if (month >= 4) {
-    return `${year}-${year + 1}`;
+    return `${year}-${year + 1}`; //belongs to Current Year → Next Year
   } else {
     return `${year - 1}-${year}`;
   }

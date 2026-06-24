@@ -71,7 +71,7 @@ tables.forEach(t => {
 if (!args.includes('--confirm')) {
   console.log('\n  Run again with --confirm to actually delete:');
   if (register === 'all') {
-    console.log(`  node scripts/delete-fy.js all ${fyRaw} --confirm`);
+    console.log(`  node scripts/delete-fy.js all ${fyRaw} --confirm`); //node scripts/delete-fy.js po 2024-25 --confirm
   } else {
     console.log(`  node scripts/delete-fy.js ${register} ${fyRaw} --confirm`);
   }
@@ -85,3 +85,5 @@ tables.forEach(t => deleteFromTable(t, FY));
 
 db.close();
 console.log('\nDone.');
+// Delete the entries
+//node scripts/delete-fy.js po 2026-2027 --confirm
